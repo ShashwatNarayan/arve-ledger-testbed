@@ -1,0 +1,27 @@
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+.pytest_cache/
+
+# SQLite working database
+*.db
+backend/ledger.db
+
+# Node
+node_modules/
+
+# Editors / OS
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+
+# Real environment file. `.env.example` is committed on purpose.
+.env
+
+# NOTE: this repository deliberately commits things a real project would not.
+# Do not add `*.pem`, `package-lock.json`, or `requirements.txt` here --
+# `backend/keys/webhook_signing.pem` and both lockfiles are planted findings and
+# must stay tracked. See EXPECTED_FINDINGS.md.
