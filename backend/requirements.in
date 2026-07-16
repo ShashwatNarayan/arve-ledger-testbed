@@ -1,0 +1,17 @@
+# Direct dependencies only. Compile with:
+#
+#     pip-compile --output-file=requirements.txt requirements.in
+#
+# INTENTIONALLY VULNERABLE TESTBED - see EXPECTED_FINDINGS.md.
+#
+# Note that `certifi` is deliberately NOT listed here. It reaches the tree only
+# through httpx/httpcore, neither of which constrains its version, which is why
+# an ancient pin survives in requirements.txt. That is DEP-02.
+
+fastapi==0.141.1
+uvicorn==0.52.4
+httpx==0.28.1
+pytest==9.1.1
+
+# TESTBED DEP-01 - intentional, see EXPECTED_FINDINGS.md
+PyYAML==5.1
