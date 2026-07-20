@@ -1,0 +1,83 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Ledger Operator Console</title>
+    <style>
+      body {
+        font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+        max-width: 40rem;
+        margin: 2rem auto;
+        padding: 0 1rem;
+        line-height: 1.5;
+      }
+      .warning {
+        border: 1px solid #b45309;
+        background: #fffbeb;
+        color: #7c2d12;
+        padding: 0.75rem 1rem;
+        border-radius: 4px;
+        font-size: 0.875rem;
+      }
+      fieldset {
+        border: 1px solid #d4d4d8;
+        border-radius: 4px;
+        margin: 1rem 0;
+      }
+      label {
+        display: block;
+        margin: 0.5rem 0 0.25rem;
+        font-size: 0.875rem;
+      }
+      input {
+        width: 100%;
+        padding: 0.4rem;
+        box-sizing: border-box;
+      }
+      button {
+        margin-top: 0.75rem;
+        padding: 0.4rem 0.9rem;
+        cursor: pointer;
+      }
+      pre {
+        background: #f4f4f5;
+        padding: 0.75rem;
+        border-radius: 4px;
+        overflow-x: auto;
+        font-size: 0.8125rem;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>Ledger Operator Console</h1>
+
+    <p class="warning">
+      <strong>Intentionally vulnerable testbed.</strong> This page and the API
+      behind it exist only to evaluate a security scanner. Never deploy them.
+    </p>
+
+    <fieldset>
+      <legend>Open an account</legend>
+      <label for="owner">Account owner</label>
+      <input id="owner" type="text" placeholder="Ada Lovelace" />
+      <button id="create-account">Create account</button>
+    </fieldset>
+
+    <fieldset>
+      <legend>Look up a balance</legend>
+      <label for="account-id">Account ID</label>
+      <input id="account-id" type="text" placeholder="acct_..." />
+      <button id="fetch-balance">Get balance</button>
+    </fieldset>
+
+    <h2>Response</h2>
+    <pre id="output">Nothing yet.</pre>
+
+    <!-- Served from node_modules by dev-server.js. Run `npm install` first. -->
+    <script src="./config.js"></script>
+    <script src="./node_modules/jquery/dist/jquery.min.js"></script>
+    <script src="./node_modules/lodash/lodash.min.js"></script>
+    <script src="./src/main.js"></script>
+  </body>
+</html>
