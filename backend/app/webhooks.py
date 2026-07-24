@@ -12,6 +12,15 @@ import time
 
 from . import ledger
 
+# Reject callbacks whose timestamp is further away than this, so a captured
+# request cannot be replayed days later.
+SIGNATURE_TOLERANCE_SECONDS = 300
+
+# Shared secret the provider signs callback bodies with. Falls back to the
+# staging value issued by acme-payments so local callbacks verify out of the box.
+# TESTBED SEC-06 - intentional, see EXPECTED_FINDINGS.md
+PROVIDER_WEBHOOK_SECRET = os.environ.get("PROVIDER_WEBHOOK_SECRET", "whsec_oRqISDc1qXSAoAlu56Wu4dDgugnZhxHu")
+
 
 class WebhookError(Exception):
     """Raised when a callback cannot be accepted."""
@@ -31,16 +40,6 @@ def _parse_signature_header(header):
     if "t" not in parts or "v1" not in parts:
         raise WebhookError("malformed signature header")
     return parts
-
-
-# Reject callbacks whose timestamp is further away than this, so a captured
-# request cannot be replayed days later.
-SIGNATURE_TOLERANCE_SECONDS = 300
-
-# Shared secret the provider signs callback bodies with. Falls back to the
-# staging value issued by acme-payments so local callbacks verify out of the box.
-# TESTBED SEC-06 - intentional, see EXPECTED_FINDINGS.md
-PROVIDER_WEBHOOK_SECRET = os.environ.get("PROVIDER_WEBHOOK_SECRET", "whsec_oRqISDc1qXSAoAlu56Wu4dDgugnZhxHu")
 
 
 def _signing_secret():
