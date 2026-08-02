@@ -1,0 +1,55 @@
+# Deployment workflow.
+#
+# INTENTIONALLY VULNERABLE TESTBED - this workflow is never run. See
+# EXPECTED_FINDINGS.md in the repository root.
+
+name: deploy
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies
+        working-directory: backend
+        run: pip install -r requirements.txt
+
+      - name: Run tests
+        working-directory: backend
+        run: python -m pytest
+
+  deploy:
+    needs: test
+    runs-on: ubuntu-latest
+    environment: production
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build artifact
+        run: tar -czf ledger.tar.gz backend web
+
+      # TESTBED SEC-02 - intentional, see EXPECTED_FINDINGS.md
+      - name: Upload release bundle
+        env:
+          AWS_DEFAULT_REGION: eu-west-1
+          AWS_ACCESS_KEY_ID: AKIAEDRNS76CCO2LXG33
+          AWS_SECRET_ACCESS_KEY: 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
+        run: |
+          aws s3 cp ledger.tar.gz "s3://acme-ledger-releases/${GITHUB_SHA}.tar.gz"
+
+      - name: Restart service
+        run: |
+          aws ecs update-service \
+            --cluster acme-payments \
+            --service arve-ledger \
+            --force-new-deployment
