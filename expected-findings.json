@@ -1,0 +1,850 @@
+{
+  "schema_version": "1.0",
+  "repository": "arve-ledger-testbed",
+  "description": "Ground truth for evaluating ARVE. Every finding here was planted deliberately.",
+  "advisory_data_verified": "2026-08-31",
+  "verification_method": "osv.dev /v1/query, with every returned advisory re-checked against its own affected ranges",
+  "planted_finding_count": {
+    "total": 17,
+    "secrets": 9,
+    "dependencies": 8,
+    "recorded_so_far": 17
+  },
+  "expected_osv_record_count": 30,
+  "line_numbers_verified_at_final_commit": true,
+  "all_credentials_synthetic": true,
+  "findings": [
+    {
+      "id": "SEC-01",
+      "engine": "gitleaks",
+      "finding_type": "secret",
+      "severity": "HIGH",
+      "file_path": "backend/app/config.py",
+      "line_start": 35,
+      "rule_id": "stripe-access-token",
+      "history_only": false,
+      "tests": "baseline detection at HEAD - if this is missed, the pipeline is broken",
+      "notes": "Shape sk_live_ + 24 alphanumerics. Matched by a named-vendor rule, the easiest class of secret there is.",
+      "testbed": {
+        "expected_finding_count": 1,
+        "what_was_planted": "Stripe live secret key hardcoded as the fallback for the STRIPE_API_KEY environment variable.",
+        "additional_locations": []
+      }
+    },
+    {
+      "id": "SEC-02",
+      "engine": "gitleaks",
+      "finding_type": "secret",
+      "severity": "HIGH",
+      "file_path": ".github/workflows/deploy.yml",
+      "line_start": 45,
+      "rule_id": "aws-access-token",
+      "history_only": false,
+      "tests": "non-Python path; workflow YAML is sometimes skipped by path filters",
+      "notes": "Produces TWO gitleaks findings: aws-access-token at line 45 (the AKIA id) and generic-api-key at line 46 (the 40-char secret). The key ID uses the real AWS base32 alphabet (A-Z, 2-7); gitleaks rejects AKIA values containing 0/1/8/9, so a naively random value is silently undetectable.",
+      "testbed": {
+        "expected_finding_count": 2,
+        "what_was_planted": "AWS access key ID and secret access key set as env vars on the release-upload step.",
+        "additional_locations": [
+          {
+            "rule": "generic-api-key",
+            "line": 46,
+            "note": "AWS_SECRET_ACCESS_KEY, 40 chars"
+          }
+        ]
+      }
+    },
+    {
+      "id": "SEC-03",
+      "engine": "gitleaks",
+      "finding_type": "secret",
+      "severity": "HIGH",
+      "file_path": "backend/keys/webhook_signing.pem",
+      "line_start": 5,
+      "rule_id": "private-key",
+      "history_only": false,
+      "tests": "a distinct Gitleaks rule class from token regexes - block detection, not a token regex",
+      "notes": "PEM structure is valid and passes `openssl rsa -check`, so the finding is not an artifact of a malformed file. The file carries a 3-line TESTBED header before the PEM block; openssl ignores text before the BEGIN marker (verified with `openssl rsa -check`), which is why the finding is at line 5 rather than line 1.",
+      "testbed": {
+        "expected_finding_count": 1,
+        "what_was_planted": "A genuine 2048-bit RSA private key, generated throwaway with openssl and never used for anything.",
+        "additional_locations": []
+      }
+    },
+    {
+      "id": "SEC-04",
+      "engine": "gitleaks",
+      "finding_type": "secret",
+      "severity": "HIGH",
+      "file_path": "backend/app/settlement.py",
+      "line_start": 16,
+      "rule_id": "generic-api-key",
+      "history_only": true,
+      "tests": "GIT HISTORY SCANNING - absent from the working tree at HEAD, still present in history",
+      "notes": "VERIFIED at build time: a working-tree scan (`gitleaks dir`) reports 0 findings for this file; a history scan (`gitleaks git`) reports 1, at backend/app/settlement.py:16 in commit 5f9ec864. The file does not exist at HEAD. A scanner that only walks the filesystem misses this entirely and is wrong. ARVE must not mark it RESOLVED merely because HEAD is clean - the credential was committed and must be treated as exposed until rotated. Its value is derived deterministically by seed_history.py rather than written there as a literal, precisely so the build script does not itself put the secret at HEAD and destroy this test.",
+      "testbed": {
+        "expected_finding_count": 1,
+        "what_was_planted": "SFTP password for the bank settlement-file service account.",
+        "additional_locations": [],
+        "history": {
+          "introduced_commit": "5f9ec864",
+          "introduced_message": "add nightly settlement file transfer",
+          "deleted_commit": "5c1f6a8f",
+          "deleted_message": "clean up settlement config, the transfer moved to the platform job",
+          "present_at_head": false,
+          "working_tree_scan_finds_it": false,
+          "history_scan_finds_it": true
+        }
+      }
+    },
+    {
+      "id": "SEC-05",
+      "engine": "gitleaks",
+      "finding_type": "secret",
+      "severity": "HIGH",
+      "file_path": "backend/app/config.py",
+      "line_start": 45,
+      "rule_id": "generic-api-key",
+      "history_only": false,
+      "tests": "FINGERPRINT BEHAVIOUR - one finding or two? Whatever ARVE does must be deliberate",
+      "notes": "Same 48-char value at backend/app/config.py:45 and backend/tests/conftest.py:14. Gitleaks reports TWO findings because it fingerprints per (file, line, secret). If ARVE dedupes on secret_hash alone it will report ONE; if it includes file path it will report TWO. Both are defensible - but the choice must be intentional and consistent, because it determines whether fixing one file resolves the finding or leaves it OPEN.",
+      "testbed": {
+        "expected_finding_count": 2,
+        "what_was_planted": "JWT signing key, byte-for-byte identical in two different files.",
+        "additional_locations": [
+          {
+            "rule": "generic-api-key",
+            "line": 14,
+            "note": "same value in backend/tests/conftest.py"
+          }
+        ]
+      }
+    },
+    {
+      "id": "SEC-06",
+      "engine": "gitleaks",
+      "finding_type": "secret",
+      "severity": "HIGH",
+      "file_path": "backend/app/webhooks.py",
+      "line_start": 22,
+      "rule_id": "generic-api-key",
+      "history_only": false,
+      "tests": "LINE-INDEPENDENT secret_hash IDENTITY - must report the same finding, not resolve-and-reopen",
+      "notes": "VERIFIED at build time: a history scan reports this secret TWICE - at webhooks.py:43 in commit 4da4e7e2 and at webhooks.py:22 in commit dc9a9d69 - with a byte-identical secret value both times. Expected: ONE finding with a STABLE fingerprint that stays OPEN across the move. A fingerprint incorporating the line number will emit RESOLVED then REOPENED, a false lifecycle transition. That noise is what trains people to ignore the tool.",
+      "testbed": {
+        "expected_finding_count": 1,
+        "what_was_planted": "Provider webhook signing secret that MOVES to a different line between two commits.",
+        "additional_locations": [],
+        "history": {
+          "introduced_commit": "4da4e7e2",
+          "introduced_line": 43,
+          "moved_commit": "dc9a9d69",
+          "moved_to_line": 22,
+          "secret_value_changed": false
+        }
+      }
+    },
+    {
+      "id": "SEC-07",
+      "engine": "gitleaks",
+      "finding_type": "secret",
+      "severity": "HIGH",
+      "file_path": "backend/app/config.py",
+      "line_start": 40,
+      "rule_id": "generic-api-key",
+      "history_only": false,
+      "tests": "entropy rule rather than a named-vendor regex",
+      "notes": "No vendor prefix, so no named rule can match it; detection depends entirely on the generic-api-key keyword+entropy path. IMPORTANT: this was initially planted across three lines and was NOT detected - gitleaks requires the keyword and the value on the SAME line. It is now a single line.",
+      "testbed": {
+        "expected_finding_count": 1,
+        "what_was_planted": "High-entropy 64-character key with no vendor prefix, as LEDGER_HMAC_KEY.",
+        "additional_locations": []
+      }
+    },
+    {
+      "id": "SEC-08",
+      "engine": "gitleaks",
+      "finding_type": "secret",
+      "severity": "MEDIUM",
+      "file_path": ".env.example",
+      "line_start": 23,
+      "rule_id": "sendgrid-api-token",
+      "history_only": false,
+      "tests": "ambiguous by design - exercises the FALSE_POSITIVE / SUPPRESSED lifecycle",
+      "notes": "VERIFIED: gitleaks DOES report this despite the .example filename - it is not path-suppressed by default. So the ambiguity is not resolved by the scanner, it is pushed to triage. A human must decide whether a correctly-shaped credential in a template file is a real leak. This is the one finding where marking it FALSE_POSITIVE or SUPPRESSED is a legitimate outcome, and ARVE must be able to carry that state across rescans without the finding reverting to OPEN.",
+      "testbed": {
+        "expected_finding_count": 1,
+        "what_was_planted": "A real-shaped SendGrid API token sitting in a committed .env.example template.",
+        "additional_locations": []
+      }
+    },
+    {
+      "id": "SEC-09",
+      "engine": "gitleaks",
+      "finding_type": "secret",
+      "severity": "MEDIUM",
+      "file_path": "docs/runbook.md",
+      "line_start": 66,
+      "rule_id": "slack-webhook-url",
+      "history_only": false,
+      "tests": "Markdown, non-code path - documentation is often excluded from scanning",
+      "notes": "Inside a fenced bash code block in a .md file. Tests that documentation paths are scanned rather than filtered out by extension.",
+      "testbed": {
+        "expected_finding_count": 1,
+        "what_was_planted": "Slack incoming-webhook URL in an operational runbook.",
+        "additional_locations": []
+      }
+    },
+    {
+      "id": "DEP-01",
+      "engine": "osv",
+      "finding_type": "dependency",
+      "severity": "CRITICAL",
+      "file_path": "backend/requirements.txt",
+      "line_start": 59,
+      "package_name": "PyYAML",
+      "package_version": "5.1",
+      "ecosystem": "PyPI",
+      "cve": "CVE-2019-20477",
+      "ghsa": "GHSA-3pqx-4fqf-j49f",
+      "history_only": false,
+      "tests": "baseline direct-dependency detection in the primary ecosystem",
+      "notes": "Lockfile is at a nested path, not the repo root. 3 GHSA records plus 3 PYSEC alias duplicates that carry no CVSS and no GitHub severity. VERIFIED in the committed baseline: osv-scanner reports this package's version as '5.1.0' although requirements.txt pins '5.1'. See normalization_notes.",
+      "testbed": {
+        "direct_dependency": true,
+        "expected_finding_count": 1,
+        "total_records_for_package": 6,
+        "additional_advisories": []
+      }
+    },
+    {
+      "id": "DEP-02",
+      "engine": "osv",
+      "finding_type": "dependency",
+      "severity": "HIGH",
+      "file_path": "backend/requirements.txt",
+      "line_start": 22,
+      "package_name": "certifi",
+      "package_version": "2018.4.16",
+      "ecosystem": "PyPI",
+      "cve": "CVE-2023-37920",
+      "ghsa": "GHSA-xqr8-7jwr-rhp7",
+      "history_only": false,
+      "tests": "transitive resolution depth - package is never named in requirements.in",
+      "notes": "Pulled in by httpx and httpcore, neither of which constrains the version. Both parents are advisory-free. osv.dev's query API also returns PYSEC-2024-230, but its ECOSYSTEM range starts at 2021.5.30 so 2018.4.16 is out of range; excluded here. VERIFIED in the committed baseline: osv-scanner DOES report PYSEC-2024-230 for this package despite the version being below that advisory's introduced bound. It is listed in the inventory as a scanner over-match so the diff comes out clean.",
+      "testbed": {
+        "direct_dependency": false,
+        "expected_finding_count": 1,
+        "total_records_for_package": 4,
+        "additional_advisories": []
+      }
+    },
+    {
+      "id": "DEP-03",
+      "engine": "osv",
+      "finding_type": "dependency",
+      "severity": "HIGH",
+      "file_path": "web/package-lock.json",
+      "line_start": 72,
+      "package_name": "lodash",
+      "package_version": "4.17.11",
+      "ecosystem": "npm",
+      "cve": "CVE-2020-8203",
+      "ghsa": "GHSA-p6mc-m468-83gw",
+      "history_only": false,
+      "tests": "baseline detection in the second ecosystem from a nested lockfile",
+      "notes": "Declared at web/package.json line 12 and genuinely used by web/src/main.js.",
+      "testbed": {
+        "direct_dependency": true,
+        "expected_finding_count": 1,
+        "total_records_for_package": 7,
+        "additional_advisories": []
+      }
+    },
+    {
+      "id": "DEP-04",
+      "engine": "osv",
+      "finding_type": "dependency",
+      "severity": "MEDIUM",
+      "file_path": "web/package-lock.json",
+      "line_start": 29,
+      "package_name": "follow-redirects",
+      "package_version": "1.14.7",
+      "ecosystem": "npm",
+      "cve": "CVE-2022-0536",
+      "ghsa": "GHSA-pw2r-vq6v-hr8c",
+      "history_only": false,
+      "tests": "lockfile graph parsing - present only in package-lock.json, absent from package.json",
+      "notes": "Enters solely as a dependency of http-proxy@1.18.1 (which declares ^1.0.0 and is itself advisory-free). Lock is genuine npm output; npm reports 'up to date' against it. CVE-2022-0155 was the original target but is fixed in 1.14.7 and does not apply.",
+      "testbed": {
+        "direct_dependency": false,
+        "expected_finding_count": 1,
+        "total_records_for_package": 4,
+        "additional_advisories": []
+      }
+    },
+    {
+      "id": "DEP-05",
+      "engine": "osv",
+      "finding_type": "dependency",
+      "severity": "MEDIUM",
+      "file_path": "web/package-lock.json",
+      "line_start": 78,
+      "package_name": "minimist",
+      "package_version": "1.2.0",
+      "ecosystem": "npm",
+      "cve": "CVE-2020-7598",
+      "ghsa": "GHSA-vh95-rmgr-6w4m",
+      "history_only": false,
+      "tests": "fingerprint uniqueness per (package, advisory) - must produce TWO findings, not one",
+      "notes": "Exactly two advisories, no more, so the expected count is unambiguous. A fingerprint keyed only on (package, version) collapses these and loses the CRITICAL one.",
+      "testbed": {
+        "direct_dependency": true,
+        "expected_finding_count": 2,
+        "total_records_for_package": 2,
+        "additional_advisories": [
+          {
+            "ghsa": "GHSA-xvch-5gv4-984h",
+            "cve": "CVE-2021-44906",
+            "severity": "CRITICAL"
+          }
+        ]
+      }
+    },
+    {
+      "id": "DEP-06",
+      "engine": "osv",
+      "finding_type": "dependency",
+      "severity": "MEDIUM",
+      "file_path": "web/package-lock.json",
+      "line_start": 65,
+      "package_name": "jquery",
+      "package_version": "3.3.1",
+      "ecosystem": "npm",
+      "cve": "CVE-2019-11358",
+      "ghsa": "GHSA-6c3j-c64m-qhgq",
+      "history_only": false,
+      "tests": "normalize_severity - GitHub severity string 'moderate' must map to canonical MEDIUM",
+      "notes": "All three of this package's advisories are 'moderate', so there is no mixed-severity ambiguity. A normalizer that passes the string through or uppercases it to MODERATE is wrong on all three at once.",
+      "testbed": {
+        "direct_dependency": true,
+        "expected_finding_count": 1,
+        "total_records_for_package": 3,
+        "additional_advisories": []
+      }
+    },
+    {
+      "id": "DEP-07",
+      "engine": "osv",
+      "finding_type": "dependency",
+      "severity": "HIGH",
+      "file_path": "web/package-lock.json",
+      "line_start": 92,
+      "package_name": "serialize-javascript",
+      "package_version": "2.1.2",
+      "ecosystem": "npm",
+      "cve": null,
+      "ghsa": "GHSA-5c6j-r48x-rmvq",
+      "history_only": false,
+      "tests": "advisory with a GHSA ID but no CVE - ghsa must populate and cve must stay null",
+      "notes": "The package's other advisory (GHSA-hxcc-f52p-wc94) DOES carry CVE-2020-7660, so one package at one version yields one finding with a CVE and one without. Catches cve set to 'None', '', or the GHSA id. Originally assigned to http-proxy@1.18.1, but that advisory is fixed in 1.18.1 and does not apply.",
+      "testbed": {
+        "direct_dependency": true,
+        "expected_finding_count": 1,
+        "total_records_for_package": 2,
+        "additional_advisories": []
+      }
+    },
+    {
+      "id": "DEP-08",
+      "engine": "osv",
+      "finding_type": "dependency",
+      "severity": "MEDIUM",
+      "file_path": "web/package-lock.json",
+      "line_start": 99,
+      "package_name": "stringstream",
+      "package_version": "0.0.5",
+      "ecosystem": "npm",
+      "cve": "CVE-2018-21270",
+      "ghsa": "GHSA-mf6x-7mm4-x2g7",
+      "history_only": false,
+      "tests": "severity fallback - OSV record has an empty severity array (no CVSS vector at all)",
+      "notes": "Must not crash and must not emit null. Correct result is MEDIUM via database_specific.severity='moderate'. Only single-record, no-alias, no-CVSS advisory available; PYSEC records with no severity at all always sit beside a CVSS-bearing GHSA alias, which would make the expected answer ambiguous.",
+      "testbed": {
+        "direct_dependency": true,
+        "expected_finding_count": 1,
+        "total_records_for_package": 1,
+        "additional_advisories": []
+      }
+    }
+  ],
+  "expected_osv_inventory": [
+    {
+      "ecosystem": "PyPI",
+      "package_name": "PyYAML",
+      "package_version": "5.1",
+      "osv_id": "GHSA-3pqx-4fqf-j49f",
+      "ghsa": "GHSA-3pqx-4fqf-j49f",
+      "cve": "CVE-2019-20477",
+      "github_severity": "CRITICAL",
+      "has_cvss": true,
+      "severity": "CRITICAL",
+      "severity_source": "github_severity_string",
+      "summary": "Deserialization of Untrusted Data in PyYAML"
+    },
+    {
+      "ecosystem": "PyPI",
+      "package_name": "PyYAML",
+      "package_version": "5.1",
+      "osv_id": "GHSA-6757-jp84-gxfx",
+      "ghsa": "GHSA-6757-jp84-gxfx",
+      "cve": "CVE-2020-1747",
+      "github_severity": "CRITICAL",
+      "has_cvss": true,
+      "severity": "CRITICAL",
+      "severity_source": "github_severity_string",
+      "summary": "Improper Input Validation in PyYAML"
+    },
+    {
+      "ecosystem": "PyPI",
+      "package_name": "PyYAML",
+      "package_version": "5.1",
+      "osv_id": "GHSA-8q59-q68h-6hv4",
+      "ghsa": "GHSA-8q59-q68h-6hv4",
+      "cve": "CVE-2020-14343",
+      "github_severity": "CRITICAL",
+      "has_cvss": true,
+      "severity": "CRITICAL",
+      "severity_source": "github_severity_string",
+      "summary": "Improper Input Validation in PyYAML"
+    },
+    {
+      "ecosystem": "PyPI",
+      "package_name": "PyYAML",
+      "package_version": "5.1",
+      "osv_id": "PYSEC-2020-176",
+      "ghsa": "GHSA-3pqx-4fqf-j49f",
+      "cve": "CVE-2019-20477",
+      "github_severity": null,
+      "has_cvss": false,
+      "severity": "MEDIUM",
+      "severity_source": "no_severity_data",
+      "summary": ""
+    },
+    {
+      "ecosystem": "PyPI",
+      "package_name": "PyYAML",
+      "package_version": "5.1",
+      "osv_id": "PYSEC-2020-96",
+      "ghsa": "GHSA-6757-jp84-gxfx",
+      "cve": "CVE-2020-1747",
+      "github_severity": null,
+      "has_cvss": false,
+      "severity": "MEDIUM",
+      "severity_source": "no_severity_data",
+      "summary": ""
+    },
+    {
+      "ecosystem": "PyPI",
+      "package_name": "PyYAML",
+      "package_version": "5.1",
+      "osv_id": "PYSEC-2021-142",
+      "ghsa": "GHSA-8q59-q68h-6hv4",
+      "cve": "CVE-2020-14343",
+      "github_severity": null,
+      "has_cvss": false,
+      "severity": "MEDIUM",
+      "severity_source": "no_severity_data",
+      "summary": ""
+    },
+    {
+      "ecosystem": "PyPI",
+      "package_name": "certifi",
+      "package_version": "2018.4.16",
+      "osv_id": "GHSA-43fp-rhv2-5gv8",
+      "ghsa": "GHSA-43fp-rhv2-5gv8",
+      "cve": "CVE-2022-23491",
+      "github_severity": "MODERATE",
+      "has_cvss": true,
+      "severity": "MEDIUM",
+      "severity_source": "github_severity_string",
+      "summary": "Certifi removing TrustCor root certificate"
+    },
+    {
+      "ecosystem": "PyPI",
+      "package_name": "certifi",
+      "package_version": "2018.4.16",
+      "osv_id": "GHSA-xqr8-7jwr-rhp7",
+      "ghsa": "GHSA-xqr8-7jwr-rhp7",
+      "cve": "CVE-2023-37920",
+      "github_severity": "HIGH",
+      "has_cvss": true,
+      "severity": "HIGH",
+      "severity_source": "github_severity_string",
+      "summary": "Removal of e-Tugra root certificate"
+    },
+    {
+      "ecosystem": "PyPI",
+      "package_name": "certifi",
+      "package_version": "2018.4.16",
+      "osv_id": "PYSEC-2022-42986",
+      "ghsa": "GHSA-43fp-rhv2-5gv8",
+      "cve": "CVE-2022-23491",
+      "github_severity": null,
+      "has_cvss": false,
+      "severity": "MEDIUM",
+      "severity_source": "no_severity_data",
+      "summary": ""
+    },
+    {
+      "ecosystem": "PyPI",
+      "package_name": "certifi",
+      "package_version": "2018.4.16",
+      "osv_id": "PYSEC-2023-135",
+      "ghsa": "GHSA-xqr8-7jwr-rhp7",
+      "cve": "CVE-2023-37920",
+      "github_severity": null,
+      "has_cvss": false,
+      "severity": "MEDIUM",
+      "severity_source": "no_severity_data",
+      "summary": ""
+    },
+    {
+      "ecosystem": "PyPI",
+      "package_name": "certifi",
+      "package_version": "2018.4.16",
+      "osv_id": "PYSEC-2024-230",
+      "ghsa": "GHSA-248v-346w-9cwc",
+      "cve": "CVE-2024-39689",
+      "github_severity": null,
+      "has_cvss": true,
+      "severity": "MEDIUM",
+      "severity_source": "cvss_only",
+      "summary": "Certifi removes GLOBALTRUST root certificate",
+      "testbed_note": "SCANNER OVER-MATCH, NOT A PLANTED FINDING. This advisory's ECOSYSTEM range is introduced 2021.5.30 / fixed 2024.7.4, so certifi 2018.4.16 is BELOW the introduced bound and is not actually affected. osv-scanner reports it anyway, most likely because the record also carries a GIT range with introduced:0. Confirmed present in the committed osv-baseline.json. ARVE reporting it is CORRECT behaviour - it faithfully reflects its scanner. Do not 'fix' ARVE to suppress this."
+    },
+    {
+      "ecosystem": "npm",
+      "package_name": "lodash",
+      "package_version": "4.17.11",
+      "osv_id": "GHSA-29mw-wpgm-hmr9",
+      "ghsa": "GHSA-29mw-wpgm-hmr9",
+      "cve": "CVE-2020-28500",
+      "github_severity": "MODERATE",
+      "has_cvss": true,
+      "severity": "MEDIUM",
+      "severity_source": "github_severity_string",
+      "summary": "Regular Expression Denial of Service (ReDoS) in lodash"
+    },
+    {
+      "ecosystem": "npm",
+      "package_name": "lodash",
+      "package_version": "4.17.11",
+      "osv_id": "GHSA-35jh-r3h4-6jhm",
+      "ghsa": "GHSA-35jh-r3h4-6jhm",
+      "cve": "CVE-2021-23337",
+      "github_severity": "HIGH",
+      "has_cvss": true,
+      "severity": "HIGH",
+      "severity_source": "github_severity_string",
+      "summary": "Command Injection in lodash"
+    },
+    {
+      "ecosystem": "npm",
+      "package_name": "lodash",
+      "package_version": "4.17.11",
+      "osv_id": "GHSA-f23m-r3pf-42rh",
+      "ghsa": "GHSA-f23m-r3pf-42rh",
+      "cve": "CVE-2025-13465",
+      "github_severity": "MODERATE",
+      "has_cvss": true,
+      "severity": "MEDIUM",
+      "severity_source": "github_severity_string",
+      "summary": "lodash vulnerable to Prototype Pollution via array path bypass in `_.unset` and `_.omit`"
+    },
+    {
+      "ecosystem": "npm",
+      "package_name": "lodash",
+      "package_version": "4.17.11",
+      "osv_id": "GHSA-jf85-cpcp-j695",
+      "ghsa": "GHSA-jf85-cpcp-j695",
+      "cve": "CVE-2019-10744",
+      "github_severity": "CRITICAL",
+      "has_cvss": true,
+      "severity": "CRITICAL",
+      "severity_source": "github_severity_string",
+      "summary": "Prototype Pollution in lodash"
+    },
+    {
+      "ecosystem": "npm",
+      "package_name": "lodash",
+      "package_version": "4.17.11",
+      "osv_id": "GHSA-p6mc-m468-83gw",
+      "ghsa": "GHSA-p6mc-m468-83gw",
+      "cve": "CVE-2020-8203",
+      "github_severity": "HIGH",
+      "has_cvss": true,
+      "severity": "HIGH",
+      "severity_source": "github_severity_string",
+      "summary": "Prototype Pollution in lodash"
+    },
+    {
+      "ecosystem": "npm",
+      "package_name": "lodash",
+      "package_version": "4.17.11",
+      "osv_id": "GHSA-r5fr-rjxr-66jc",
+      "ghsa": "GHSA-r5fr-rjxr-66jc",
+      "cve": "CVE-2021-23337",
+      "github_severity": "HIGH",
+      "has_cvss": true,
+      "severity": "HIGH",
+      "severity_source": "github_severity_string",
+      "summary": "lodash vulnerable to Code Injection via `_.template` imports key names"
+    },
+    {
+      "ecosystem": "npm",
+      "package_name": "lodash",
+      "package_version": "4.17.11",
+      "osv_id": "GHSA-xxjr-mmjv-4gpg",
+      "ghsa": "GHSA-xxjr-mmjv-4gpg",
+      "cve": "CVE-2025-13465",
+      "github_severity": "MODERATE",
+      "has_cvss": true,
+      "severity": "MEDIUM",
+      "severity_source": "github_severity_string",
+      "summary": "Lodash has Prototype Pollution Vulnerability in `_.unset` and `_.omit` functions"
+    },
+    {
+      "ecosystem": "npm",
+      "package_name": "follow-redirects",
+      "package_version": "1.14.7",
+      "osv_id": "GHSA-cxjh-pqwp-8mfp",
+      "ghsa": "GHSA-cxjh-pqwp-8mfp",
+      "cve": "CVE-2024-28849",
+      "github_severity": "MODERATE",
+      "has_cvss": true,
+      "severity": "MEDIUM",
+      "severity_source": "github_severity_string",
+      "summary": "follow-redirects' Proxy-Authorization header kept across hosts"
+    },
+    {
+      "ecosystem": "npm",
+      "package_name": "follow-redirects",
+      "package_version": "1.14.7",
+      "osv_id": "GHSA-jchw-25xp-jwwc",
+      "ghsa": "GHSA-jchw-25xp-jwwc",
+      "cve": "CVE-2023-26159",
+      "github_severity": "MODERATE",
+      "has_cvss": true,
+      "severity": "MEDIUM",
+      "severity_source": "github_severity_string",
+      "summary": "Follow Redirects improperly handles URLs in the url.parse() function"
+    },
+    {
+      "ecosystem": "npm",
+      "package_name": "follow-redirects",
+      "package_version": "1.14.7",
+      "osv_id": "GHSA-pw2r-vq6v-hr8c",
+      "ghsa": "GHSA-pw2r-vq6v-hr8c",
+      "cve": "CVE-2022-0536",
+      "github_severity": "MODERATE",
+      "has_cvss": true,
+      "severity": "MEDIUM",
+      "severity_source": "github_severity_string",
+      "summary": "Exposure of Sensitive Information to an Unauthorized Actor in follow-redirects"
+    },
+    {
+      "ecosystem": "npm",
+      "package_name": "follow-redirects",
+      "package_version": "1.14.7",
+      "osv_id": "GHSA-r4q5-vmmm-2653",
+      "ghsa": "GHSA-r4q5-vmmm-2653",
+      "cve": "CVE-2026-40895",
+      "github_severity": "MODERATE",
+      "has_cvss": true,
+      "severity": "MEDIUM",
+      "severity_source": "github_severity_string",
+      "summary": "follow-redirects leaks Custom Authentication Headers to Cross-Domain Redirect Targets"
+    },
+    {
+      "ecosystem": "npm",
+      "package_name": "minimist",
+      "package_version": "1.2.0",
+      "osv_id": "GHSA-vh95-rmgr-6w4m",
+      "ghsa": "GHSA-vh95-rmgr-6w4m",
+      "cve": "CVE-2020-7598",
+      "github_severity": "MODERATE",
+      "has_cvss": true,
+      "severity": "MEDIUM",
+      "severity_source": "github_severity_string",
+      "summary": "Prototype Pollution in minimist"
+    },
+    {
+      "ecosystem": "npm",
+      "package_name": "minimist",
+      "package_version": "1.2.0",
+      "osv_id": "GHSA-xvch-5gv4-984h",
+      "ghsa": "GHSA-xvch-5gv4-984h",
+      "cve": "CVE-2021-44906",
+      "github_severity": "CRITICAL",
+      "has_cvss": true,
+      "severity": "CRITICAL",
+      "severity_source": "github_severity_string",
+      "summary": "Prototype Pollution in minimist"
+    },
+    {
+      "ecosystem": "npm",
+      "package_name": "jquery",
+      "package_version": "3.3.1",
+      "osv_id": "GHSA-6c3j-c64m-qhgq",
+      "ghsa": "GHSA-6c3j-c64m-qhgq",
+      "cve": "CVE-2019-11358",
+      "github_severity": "MODERATE",
+      "has_cvss": true,
+      "severity": "MEDIUM",
+      "severity_source": "github_severity_string",
+      "summary": "XSS in jQuery as used in Drupal, Backdrop CMS, and other products"
+    },
+    {
+      "ecosystem": "npm",
+      "package_name": "jquery",
+      "package_version": "3.3.1",
+      "osv_id": "GHSA-gxr4-xjj5-5px2",
+      "ghsa": "GHSA-gxr4-xjj5-5px2",
+      "cve": "CVE-2020-11022",
+      "github_severity": "MODERATE",
+      "has_cvss": true,
+      "severity": "MEDIUM",
+      "severity_source": "github_severity_string",
+      "summary": "Potential XSS vulnerability in jQuery"
+    },
+    {
+      "ecosystem": "npm",
+      "package_name": "jquery",
+      "package_version": "3.3.1",
+      "osv_id": "GHSA-jpcq-cgw6-v4j6",
+      "ghsa": "GHSA-jpcq-cgw6-v4j6",
+      "cve": "CVE-2020-11023",
+      "github_severity": "MODERATE",
+      "has_cvss": true,
+      "severity": "MEDIUM",
+      "severity_source": "github_severity_string",
+      "summary": "Potential XSS vulnerability in jQuery"
+    },
+    {
+      "ecosystem": "npm",
+      "package_name": "serialize-javascript",
+      "package_version": "2.1.2",
+      "osv_id": "GHSA-5c6j-r48x-rmvq",
+      "ghsa": "GHSA-5c6j-r48x-rmvq",
+      "cve": null,
+      "github_severity": "HIGH",
+      "has_cvss": true,
+      "severity": "HIGH",
+      "severity_source": "github_severity_string",
+      "summary": "Serialize JavaScript is Vulnerable to RCE via RegExp.flags and Date.prototype.toISOString()"
+    },
+    {
+      "ecosystem": "npm",
+      "package_name": "serialize-javascript",
+      "package_version": "2.1.2",
+      "osv_id": "GHSA-hxcc-f52p-wc94",
+      "ghsa": "GHSA-hxcc-f52p-wc94",
+      "cve": "CVE-2020-7660",
+      "github_severity": "HIGH",
+      "has_cvss": true,
+      "severity": "HIGH",
+      "severity_source": "github_severity_string",
+      "summary": "Insecure serialization leading to RCE in serialize-javascript"
+    },
+    {
+      "ecosystem": "npm",
+      "package_name": "stringstream",
+      "package_version": "0.0.5",
+      "osv_id": "GHSA-mf6x-7mm4-x2g7",
+      "ghsa": "GHSA-mf6x-7mm4-x2g7",
+      "cve": "CVE-2018-21270",
+      "github_severity": "MODERATE",
+      "has_cvss": false,
+      "severity": "MEDIUM",
+      "severity_source": "github_severity_string",
+      "summary": "Out-of-bounds Read in stringstream"
+    }
+  ],
+  "packages_expected_clean": [
+    "annotated-doc",
+    "annotated-types",
+    "anyio",
+    "click",
+    "colorama",
+    "fastapi",
+    "h11",
+    "httpcore",
+    "httpx",
+    "idna",
+    "iniconfig",
+    "packaging",
+    "pluggy",
+    "pydantic",
+    "pydantic-core",
+    "pygments",
+    "pytest",
+    "starlette",
+    "typing-extensions",
+    "typing-inspection",
+    "uvicorn",
+    "eventemitter3",
+    "http-proxy",
+    "requires-port"
+  ],
+  "expected_gitleaks_finding_count_at_head": 10,
+  "gitleaks_verified_with": "gitleaks 8.30.1, working-tree scan, 2026-08-31",
+  "expected_gitleaks_finding_count_full_history": 12,
+  "git_history": {
+    "commit_count": 11,
+    "built_by": "seed_history.py --force",
+    "reproducible": true,
+    "note": "Scan the Git repository, not the filesystem. `gitleaks dir` on a working copy also walks .venv/ and node_modules/ and produces unrelated hits; both are gitignored so a repository scan does not see them."
+  },
+  "osv_baseline": {
+    "tool": "osv-scanner 2.5.1",
+    "command": "osv-scanner scan source --recursive . --format json",
+    "records_reported": 30,
+    "records_planted": 29,
+    "over_matches": [
+      "PYSEC-2024-230 (certifi, version below the advisory's introduced bound)"
+    ],
+    "missed_by_scanner": [],
+    "lockfiles_discovered": [
+      "backend/requirements.txt",
+      "web/package-lock.json"
+    ],
+    "note": "Both lockfiles were found at nested paths; neither is at the repository root. .venv/ and web/node_modules/ were correctly skipped as gitignored."
+  },
+  "normalization_notes": [
+    {
+      "observation": "osv-scanner normalises the PyPI version 5.1 to 5.1.0",
+      "detail": "backend/requirements.txt pins `pyyaml==5.1`, but osv-scanner reports package.version as '5.1.0'. Any ARVE fingerprint built from (package, version) will therefore key on 5.1.0, not the 5.1 written in the lockfile. This is not a bug in either tool, but it must be handled deliberately: a naive diff of ARVE output against the raw lockfile text will not match, and a fingerprint that later switches between the two forms would resolve-and-reopen every PyYAML finding.",
+      "affects": [
+        "DEP-01"
+      ]
+    },
+    {
+      "observation": "npm versions are reported verbatim",
+      "detail": "All six npm packages report the exact version string from package-lock.json.",
+      "affects": [
+        "DEP-03",
+        "DEP-04",
+        "DEP-05",
+        "DEP-06",
+        "DEP-07",
+        "DEP-08"
+      ]
+    }
+  ],
+  "baselines_committed": [
+    "gitleaks-baseline.json",
+    "osv-baseline.json"
+  ],
+  "all_line_numbers_verified": true
+}
