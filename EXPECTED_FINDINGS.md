@@ -15,7 +15,9 @@ planted deliberately and recorded at the moment it was planted.
 | Secrets verified | **2026-08-31**, gitleaks **8.30.1**, all 9 confirmed detected |
 | Expected OSV-Scanner records | **30** across 8 packages (29 planted + 1 scanner over-match) |
 | Expected Gitleaks findings | **10** at `HEAD`, **12** across full history |
-| Git history | **11 commits**, rebuilt reproducibly by `seed_history.py` |
+| Git history | **13 commits** before the v1.1 expansion (earlier revisions of this file said 11), rebuilt reproducibly by `seed_history.py`; v1.1 appends after them |
+| Answer-key schema | **1.1** — adds `file_type`, `scanner_verification` and `arve_pipeline` to every finding; see [§ ARVE pipeline view](#arve-pipeline-view-schema-11) |
+| Scanner versions | ARVE-pinned **gitleaks 8.24.2 / osv-scanner 1.9.2** and reference **gitleaks 8.30.1 / osv-scanner 2.5.1**, all re-verified **2026-09-22** |
 | Line numbers | ✅ **all 20 verified** against the committed content at the final commit |
 | Reference baselines | `gitleaks-baseline.json`, `osv-baseline.json` — both committed |
 
@@ -38,6 +40,7 @@ planted deliberately and recorded at the moment it was planted.
 | Phase 3 | `SEC-01` … `SEC-09` | ✅ planted and recorded, all 9 verified detected |
 | Phase 4 | history behaviour for `SEC-04`, `SEC-06` | ✅ built and verified |
 | Phase 5 | line-number verification, scanner baselines | ✅ complete — baselines committed |
+| v1.1 Phase 1 | schema 1.1: `file_type`, `scanner_verification`, `arve_pipeline` on all 17, plus negative controls, scanner limitations and the coverage matrix | ✅ complete |
 
 ---
 
@@ -351,8 +354,11 @@ shape, and valid for no real service. Each one carries a
 `TESTBED SEC-0N — intentional` comment beside it in the source; Gitleaks ignores
 comments entirely, so this costs nothing in detectability.
 
-**9 planted secrets produce 11 Gitleaks findings at `HEAD`.** `SEC-02` and
-`SEC-05` each yield two. Verified against **gitleaks 8.30.1**.
+**9 planted secrets produce 10 Gitleaks findings at `HEAD`** (an earlier
+revision of this file said 11; the table below always listed 10). `SEC-02` and
+`SEC-05` each yield two; `SEC-04` is absent from `HEAD`. Verified against
+**gitleaks 8.30.1**, and re-verified 2026-09-22 against **8.24.2** (ARVE's pinned
+version), which reports the identical set.
 
 > ### Two shape constraints that silently break plants
 > Both were found by running the scanner during planting rather than after, and
@@ -631,8 +637,8 @@ commands — exactly as this one is.
 
 ## Expected Gitleaks output at `HEAD`
 
-Eleven findings, verified with gitleaks 8.30.1. Line numbers are provisional
-until Phase 5 re-verifies them after the final commit.
+Ten findings, verified with gitleaks 8.30.1 and (2026-09-22) 8.24.2. Line
+numbers were re-verified at the final commit in Phase 5.
 
 | Rule | File | Line | Finding |
 |---|---|---|---|
@@ -725,14 +731,20 @@ evidence*. Do not "fix" ARVE to suppress it.
 
 ### PyPI version normalisation — a real fingerprinting hazard
 
-`backend/requirements.txt` pins `pyyaml==5.1`, but osv-scanner reports the
-version as **`5.1.0`**.
+`backend/requirements.txt` pins `pyyaml==5.1`. **What osv-scanner reports
+depends on its version** (verified 2026-09-22):
 
-Any fingerprint built from `(package, version)` keys on `5.1.0`, not the `5.1`
-written in the lockfile. This is not a bug in either tool, but it must be handled
-deliberately: a naive diff of ARVE output against raw lockfile text will not
-match, and a fingerprint that ever switched between the two forms would
-resolve-and-reopen every PyYAML finding. npm versions are reported verbatim.
+| osv-scanner | Reported name | Reported version |
+|---|---|---|
+| **1.9.2** — ARVE's pinned image | `pyyaml` | **`5.1`** (verbatim) |
+| **2.5.1** — reference, used for `osv-baseline.json` | `pyyaml` | **`5.1.0`** |
+
+So ARVE, today, keys on `5.1`, while the committed reference baseline says
+`5.1.0`. Any fingerprint built from `(package, version)` would resolve-and-reopen
+every PyYAML finding the day ARVE upgrades its OSV image. This is not a bug in
+either tool, but it must be handled deliberately — and a naive diff of ARVE
+output against the reference baseline will not match on this one package. npm
+versions are reported verbatim by both.
 
 ### Scan the repository, not the filesystem
 
@@ -773,3 +785,114 @@ findings at `HEAD`.** They add zero noise.
 
 **This redacts a *report*, not a *plant*.** Every planted secret remains plain
 text exactly where it was planted.
+
+---
+
+# ARVE pipeline view (schema 1.1)
+
+Everything above answers *"is this flaw detectable?"*. This section answers a
+different question: **"does it ever reach ARVE's scanners at all?"**
+
+ARVE does not scan this repository as it sits on disk. It scans the subset its
+ingestion `FileFilter` allows through, written to a workspace with **no `.git`
+directory** (`PROJECT_CONTEXT.md` §2–3). A plant can therefore be missed for
+three independent reasons, and telling them apart is the point of this section:
+
+| Miss type | Cause | Whose bug |
+|---|---|---|
+| **Ingestion gap** | `FileFilter` skipped the file | ARVE Phase 2 |
+| **Scanner gap** | the pinned scanner does not detect it | testbed plant, or scanner limitation |
+| **Normalizer gap** | detected, then mangled/collapsed/dropped in mapping | ARVE Phase 4A |
+
+The `ingestion` column is computed by
+[`scripts/arve_filter_mirror.py`](scripts/arve_filter_mirror.py), a mirror of
+ARVE's filter that **may drift from ARVE** — when they disagree, ARVE is right
+and the mirror needs updating.
+
+## What ARVE sees today
+
+| ID | File type | Ingestion | ARVE findings | Divergence from this answer key |
+|---|---|---|---|---|
+| SEC-01 | python | INGESTED | 1 | severity → `MEDIUM` ¹ |
+| SEC-02 | github-actions-yaml | INGESTED | 2 | severity → `MEDIUM` ¹ |
+| **SEC-03** | pem | **SKIPPED** `unsupported_file_type` | **0** | **ingestion gap** — `.pem` is not in the extension allow-list |
+| **SEC-04** | python | **ABSENT_AT_HEAD** | **0** | **history gap** — dir mode, no `.git` |
+| SEC-05 | python | INGESTED | 2 | severity → `MEDIUM` ¹; two findings, because the dir-mode fingerprint `file:rule:line` differs per file |
+| SEC-06 | python | INGESTED | 1 | severity → `MEDIUM` ¹; ARVE only ever sees HEAD (line 22), so **the line-move lifecycle test is not exercised** |
+| SEC-07 | python | INGESTED | 1 | severity → `MEDIUM` ¹ |
+| **SEC-08** | dotenv-template | **SKIPPED** `unsupported_file_type` | **0** | **ingestion gap** — `splitext('.env.example')` → `.example`, so the allow-list entry can never match. The SUPPRESSED-lifecycle test cannot run |
+| SEC-09 | markdown | INGESTED | 1 | — |
+| DEP-01 | pip-requirements | INGESTED | 1 | name `pyyaml`; version **`5.1`** on ARVE's osv 1.9.2 vs `5.1.0` on the reference 2.5.1 |
+| DEP-02 | pip-requirements | INGESTED | 1 | both versions also report the `PYSEC-2024-230` over-match — correct behaviour |
+| DEP-03 … DEP-08 | npm-package-lock | INGESTED | 1 each, **2 for DEP-05** | — |
+
+¹ ARVE's gitleaks mapper hard-codes `MEDIUM` for every secret. The `severity` in
+this answer key is the *intended* severity. Record it, do not "fix" it.
+
+**Totals: 14 of 17 plants reach ARVE's scanners.** Two are lost at ingestion
+(SEC-03, SEC-08) and one is history-only (SEC-04).
+
+| Scan | Gitleaks findings | OSV records |
+|---|---|---|
+| `gitleaks git .` / full tree (reference baseline) | **12** | **30** |
+| `gitleaks dir .` at `HEAD` | **10** | **30** |
+| **ARVE-simulated** (pinned versions, ingested subset only) | **8** | **30** |
+
+Both ingestion gaps are secrets, so the OSV number is unaffected — both
+lockfiles are ingested.
+
+## Scanner verification
+
+Every finding now records whether **ARVE's pinned scanner version** detects it,
+separately from the reference version, because rules and extractors differ
+across versions.
+
+| | gitleaks 8.24.2 (pinned) | gitleaks 8.30.1 (reference) |
+|---|---|---|
+| SEC-01 … SEC-09 | **9/9 detected** | **9/9 detected** |
+
+| | osv-scanner 1.9.2 (pinned) | osv-scanner 2.5.1 (reference) |
+|---|---|---|
+| DEP-01 … DEP-08 | **8/8, 30 records** | **8/8, 30 records** |
+
+The two versions of each tool report the identical set of findings on this
+repository — the only difference is the PyYAML version string (DEP-01).
+
+## Negative controls
+
+Things that must produce **zero** findings. If a pinned scanner fires on one, it
+moves to `known_false_positives` in `expected-findings.json` with the reason —
+that is still useful precision data.
+
+**NEG-01 — the AWS documentation example key ID.** Gitleaks allowlists values
+ending in `EXAMPLE`, so this must never fire. It already appears in **four**
+committed files, incidentally, as part of the instruction not to use it:
+`PROJECT_CONTEXT.md:208`, `plan.md:28`, `KICKSTART_PROMPT.md:40`,
+`NEW_PROJECT_START_README.md:315`. All four are INGESTED markdown.
+**Verified 2026-09-22: 0 findings in gitleaks 8.24.2 and 8.30.1.**
+
+`known_false_positives` is currently **empty**.
+
+## Scanner limitations — not plants, not scored
+
+Behaviour found while building v1.1. These are **not** planted findings and
+**must not** be scored. They are recorded so nobody debugs ARVE over them.
+
+| ID | Rule | Behaviour |
+|---|---|---|
+| **LIM-01** | `mapbox-api-token` | A Mapbox token in a URL (`...?access_token=pk...`) is **not** matched by the vendor rule — the rule needs the literal word `mapbox` immediately before the `=`. Only `generic-api-key` fires, so rule attribution is lost. Both versions. |
+| **LIM-02** | `gcp-api-key` | A Google key followed by `&` (not the last query parameter) is **detected by no rule at all**, because `&` is not in the rule's terminator set. Google's own documented `?key=...&callback=...` order is invisible. Both versions. |
+| **LIM-03** | any | `StartColumn` is wrong for a secret deep inside a very long single line, and **differs between versions** (true column 154382; 8.24.2 says 29365, 8.30.1 says 693). The line number is correct. **Not a scoring input** — ARVE's `NormalizedFinding` has no column field. |
+
+`expected-findings.json` carries the exact strings tested, with the secret value
+replaced by `{VALUE}` and its shape recorded, so the test can be re-run with a
+fresh synthetic value without planting a secret in the answer key.
+
+## Advisory drift since 2026-08-31
+
+`lodash@4.17.11` (DEP-03) still has **7** records, but osv.dev has added CVE
+aliases: `GHSA-35jh-r3h4-6jhm` and `GHSA-r5fr-rjxr-66jc` now alias both
+CVE-2021-23337 **and** CVE-2026-4800, and `GHSA-f23m-r3pf-42rh` /
+`GHSA-xxjr-mmjv-4gpg` alias both CVE-2025-13465 **and** CVE-2026-2950. The
+inventory records the original alias for each. This is the world changing, not a
+tool misbehaving.

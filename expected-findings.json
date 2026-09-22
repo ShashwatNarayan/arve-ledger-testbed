@@ -1,5 +1,5 @@
 {
-  "schema_version": "1.0",
+  "schema_version": "1.1",
   "repository": "arve-ledger-testbed",
   "description": "Ground truth for evaluating ARVE. Every finding here was planted deliberately.",
   "advisory_data_verified": "2026-08-31",
@@ -20,6 +20,7 @@
       "finding_type": "secret",
       "severity": "HIGH",
       "file_path": "backend/app/config.py",
+      "file_type": "python",
       "line_start": 35,
       "rule_id": "stripe-access-token",
       "history_only": false,
@@ -29,6 +30,21 @@
         "expected_finding_count": 1,
         "what_was_planted": "Stripe live secret key hardcoded as the fallback for the STRIPE_API_KEY environment variable.",
         "additional_locations": []
+      },
+      "scanner_verification": {
+        "gitleaks_8_24_2": true,
+        "gitleaks_8_30_1": true,
+        "mode": "dir",
+        "verified": "2026-09-22",
+        "note": "detected by `gitleaks dir` over the full working tree and by `gitleaks git`, both versions"
+      },
+      "arve_pipeline": {
+        "ingestion": "INGESTED",
+        "skip_reason": null,
+        "reaches_scanner": true,
+        "expected_arve_detected": true,
+        "expected_arve_count": 1,
+        "known_arve_divergence": "severity reported as MEDIUM: ARVE's gitleaks mapper hard-codes MEDIUM for every secret (intended HIGH)"
       }
     },
     {
@@ -37,6 +53,7 @@
       "finding_type": "secret",
       "severity": "HIGH",
       "file_path": ".github/workflows/deploy.yml",
+      "file_type": "github-actions-yaml",
       "line_start": 45,
       "rule_id": "aws-access-token",
       "history_only": false,
@@ -52,6 +69,21 @@
             "note": "AWS_SECRET_ACCESS_KEY, 40 chars"
           }
         ]
+      },
+      "scanner_verification": {
+        "gitleaks_8_24_2": true,
+        "gitleaks_8_30_1": true,
+        "mode": "dir",
+        "verified": "2026-09-22",
+        "note": "detected by `gitleaks dir` over the full working tree and by `gitleaks git`, both versions"
+      },
+      "arve_pipeline": {
+        "ingestion": "INGESTED",
+        "skip_reason": null,
+        "reaches_scanner": true,
+        "expected_arve_detected": true,
+        "expected_arve_count": 2,
+        "known_arve_divergence": "severity reported as MEDIUM: ARVE's gitleaks mapper hard-codes MEDIUM for every secret (intended HIGH)"
       }
     },
     {
@@ -60,6 +92,7 @@
       "finding_type": "secret",
       "severity": "HIGH",
       "file_path": "backend/keys/webhook_signing.pem",
+      "file_type": "pem",
       "line_start": 5,
       "rule_id": "private-key",
       "history_only": false,
@@ -69,6 +102,21 @@
         "expected_finding_count": 1,
         "what_was_planted": "A genuine 2048-bit RSA private key, generated throwaway with openssl and never used for anything.",
         "additional_locations": []
+      },
+      "scanner_verification": {
+        "gitleaks_8_24_2": true,
+        "gitleaks_8_30_1": true,
+        "mode": "dir",
+        "verified": "2026-09-22",
+        "note": "detected by `gitleaks dir` over the full working tree and by `gitleaks git`, both versions"
+      },
+      "arve_pipeline": {
+        "ingestion": "SKIPPED",
+        "skip_reason": "unsupported_file_type",
+        "reaches_scanner": false,
+        "expected_arve_detected": false,
+        "expected_arve_count": 0,
+        "known_arve_divergence": "INGESTION GAP: .pem is not in the FileFilter extension allow-list (unsupported_file_type); the scanner never sees the file."
       }
     },
     {
@@ -77,6 +125,7 @@
       "finding_type": "secret",
       "severity": "HIGH",
       "file_path": "backend/app/settlement.py",
+      "file_type": "python",
       "line_start": 16,
       "rule_id": "generic-api-key",
       "history_only": true,
@@ -95,6 +144,21 @@
           "working_tree_scan_finds_it": false,
           "history_scan_finds_it": true
         }
+      },
+      "scanner_verification": {
+        "gitleaks_8_24_2": true,
+        "gitleaks_8_30_1": true,
+        "mode": "git",
+        "verified": "2026-09-22",
+        "note": "history-only: detected by `gitleaks git` in both versions; `gitleaks dir` finds nothing"
+      },
+      "arve_pipeline": {
+        "ingestion": "ABSENT_AT_HEAD",
+        "skip_reason": null,
+        "reaches_scanner": false,
+        "expected_arve_detected": false,
+        "expected_arve_count": 0,
+        "known_arve_divergence": "HISTORY GAP: ARVE runs gitleaks in dir mode over a workspace with no .git, so history-only secrets are unreachable."
       }
     },
     {
@@ -103,6 +167,7 @@
       "finding_type": "secret",
       "severity": "HIGH",
       "file_path": "backend/app/config.py",
+      "file_type": "python",
       "line_start": 45,
       "rule_id": "generic-api-key",
       "history_only": false,
@@ -115,9 +180,28 @@
           {
             "rule": "generic-api-key",
             "line": 14,
-            "note": "same value in backend/tests/conftest.py"
+            "note": "same value in backend/tests/conftest.py",
+            "file_path": "backend/tests/conftest.py",
+            "file_type": "python",
+            "ingestion": "INGESTED",
+            "skip_reason": null
           }
         ]
+      },
+      "scanner_verification": {
+        "gitleaks_8_24_2": true,
+        "gitleaks_8_30_1": true,
+        "mode": "dir",
+        "verified": "2026-09-22",
+        "note": "detected by `gitleaks dir` over the full working tree and by `gitleaks git`, both versions"
+      },
+      "arve_pipeline": {
+        "ingestion": "INGESTED",
+        "skip_reason": null,
+        "reaches_scanner": true,
+        "expected_arve_detected": true,
+        "expected_arve_count": 2,
+        "known_arve_divergence": "severity reported as MEDIUM: ARVE's gitleaks mapper hard-codes MEDIUM for every secret (intended HIGH). Two findings, not one: the dir-mode fingerprint file:rule:line differs between the two files."
       }
     },
     {
@@ -126,6 +210,7 @@
       "finding_type": "secret",
       "severity": "HIGH",
       "file_path": "backend/app/webhooks.py",
+      "file_type": "python",
       "line_start": 22,
       "rule_id": "generic-api-key",
       "history_only": false,
@@ -142,6 +227,21 @@
           "moved_to_line": 22,
           "secret_value_changed": false
         }
+      },
+      "scanner_verification": {
+        "gitleaks_8_24_2": true,
+        "gitleaks_8_30_1": true,
+        "mode": "dir",
+        "verified": "2026-09-22",
+        "note": "detected by `gitleaks dir` over the full working tree and by `gitleaks git`, both versions"
+      },
+      "arve_pipeline": {
+        "ingestion": "INGESTED",
+        "skip_reason": null,
+        "reaches_scanner": true,
+        "expected_arve_detected": true,
+        "expected_arve_count": 1,
+        "known_arve_divergence": "severity reported as MEDIUM: ARVE's gitleaks mapper hard-codes MEDIUM for every secret (intended HIGH). ARVE only ever sees HEAD (line 22); the line move lives in history, so the lifecycle test this plant exists for is not exercised until ARVE scans history."
       }
     },
     {
@@ -150,6 +250,7 @@
       "finding_type": "secret",
       "severity": "HIGH",
       "file_path": "backend/app/config.py",
+      "file_type": "python",
       "line_start": 40,
       "rule_id": "generic-api-key",
       "history_only": false,
@@ -159,6 +260,21 @@
         "expected_finding_count": 1,
         "what_was_planted": "High-entropy 64-character key with no vendor prefix, as LEDGER_HMAC_KEY.",
         "additional_locations": []
+      },
+      "scanner_verification": {
+        "gitleaks_8_24_2": true,
+        "gitleaks_8_30_1": true,
+        "mode": "dir",
+        "verified": "2026-09-22",
+        "note": "detected by `gitleaks dir` over the full working tree and by `gitleaks git`, both versions"
+      },
+      "arve_pipeline": {
+        "ingestion": "INGESTED",
+        "skip_reason": null,
+        "reaches_scanner": true,
+        "expected_arve_detected": true,
+        "expected_arve_count": 1,
+        "known_arve_divergence": "severity reported as MEDIUM: ARVE's gitleaks mapper hard-codes MEDIUM for every secret (intended HIGH)"
       }
     },
     {
@@ -167,6 +283,7 @@
       "finding_type": "secret",
       "severity": "MEDIUM",
       "file_path": ".env.example",
+      "file_type": "dotenv-template",
       "line_start": 23,
       "rule_id": "sendgrid-api-token",
       "history_only": false,
@@ -176,6 +293,21 @@
         "expected_finding_count": 1,
         "what_was_planted": "A real-shaped SendGrid API token sitting in a committed .env.example template.",
         "additional_locations": []
+      },
+      "scanner_verification": {
+        "gitleaks_8_24_2": true,
+        "gitleaks_8_30_1": true,
+        "mode": "dir",
+        "verified": "2026-09-22",
+        "note": "detected by `gitleaks dir` over the full working tree and by `gitleaks git`, both versions"
+      },
+      "arve_pipeline": {
+        "ingestion": "SKIPPED",
+        "skip_reason": "unsupported_file_type",
+        "reaches_scanner": false,
+        "expected_arve_detected": false,
+        "expected_arve_count": 0,
+        "known_arve_divergence": "INGESTION GAP: os.path.splitext('.env.example') returns '.example', so the '.env.example' allow-list entry can never match (unsupported_file_type). The SUPPRESSED-lifecycle test cannot be exercised."
       }
     },
     {
@@ -184,6 +316,7 @@
       "finding_type": "secret",
       "severity": "MEDIUM",
       "file_path": "docs/runbook.md",
+      "file_type": "markdown",
       "line_start": 66,
       "rule_id": "slack-webhook-url",
       "history_only": false,
@@ -193,6 +326,21 @@
         "expected_finding_count": 1,
         "what_was_planted": "Slack incoming-webhook URL in an operational runbook.",
         "additional_locations": []
+      },
+      "scanner_verification": {
+        "gitleaks_8_24_2": true,
+        "gitleaks_8_30_1": true,
+        "mode": "dir",
+        "verified": "2026-09-22",
+        "note": "detected by `gitleaks dir` over the full working tree and by `gitleaks git`, both versions"
+      },
+      "arve_pipeline": {
+        "ingestion": "INGESTED",
+        "skip_reason": null,
+        "reaches_scanner": true,
+        "expected_arve_detected": true,
+        "expected_arve_count": 1,
+        "known_arve_divergence": null
       }
     },
     {
@@ -201,6 +349,7 @@
       "finding_type": "dependency",
       "severity": "CRITICAL",
       "file_path": "backend/requirements.txt",
+      "file_type": "pip-requirements",
       "line_start": 59,
       "package_name": "PyYAML",
       "package_version": "5.1",
@@ -215,6 +364,23 @@
         "expected_finding_count": 1,
         "total_records_for_package": 6,
         "additional_advisories": []
+      },
+      "scanner_verification": {
+        "osv_1_9_2": true,
+        "osv_2_5_1": true,
+        "verified": "2026-09-22",
+        "reported_version": {
+          "osv_1_9_2": "5.1",
+          "osv_2_5_1": "5.1.0"
+        }
+      },
+      "arve_pipeline": {
+        "ingestion": "INGESTED",
+        "skip_reason": null,
+        "reaches_scanner": true,
+        "expected_arve_detected": true,
+        "expected_arve_count": 1,
+        "known_arve_divergence": "Package reported as 'pyyaml' (lower-case) by both OSV versions. Version reported as '5.1' by osv-scanner v1.9.2 (ARVE's pinned version) but '5.1.0' by v2.5.1 (reference)."
       }
     },
     {
@@ -223,6 +389,7 @@
       "finding_type": "dependency",
       "severity": "HIGH",
       "file_path": "backend/requirements.txt",
+      "file_type": "pip-requirements",
       "line_start": 22,
       "package_name": "certifi",
       "package_version": "2018.4.16",
@@ -237,6 +404,23 @@
         "expected_finding_count": 1,
         "total_records_for_package": 4,
         "additional_advisories": []
+      },
+      "scanner_verification": {
+        "osv_1_9_2": true,
+        "osv_2_5_1": true,
+        "verified": "2026-09-22",
+        "reported_version": {
+          "osv_1_9_2": "2018.4.16",
+          "osv_2_5_1": "2018.4.16"
+        }
+      },
+      "arve_pipeline": {
+        "ingestion": "INGESTED",
+        "skip_reason": null,
+        "reaches_scanner": true,
+        "expected_arve_detected": true,
+        "expected_arve_count": 1,
+        "known_arve_divergence": "Both OSV versions also report PYSEC-2024-230 (over-match, see inventory); ARVE emitting it is correct."
       }
     },
     {
@@ -245,6 +429,7 @@
       "finding_type": "dependency",
       "severity": "HIGH",
       "file_path": "web/package-lock.json",
+      "file_type": "npm-package-lock",
       "line_start": 72,
       "package_name": "lodash",
       "package_version": "4.17.11",
@@ -259,6 +444,23 @@
         "expected_finding_count": 1,
         "total_records_for_package": 7,
         "additional_advisories": []
+      },
+      "scanner_verification": {
+        "osv_1_9_2": true,
+        "osv_2_5_1": true,
+        "verified": "2026-09-22",
+        "reported_version": {
+          "osv_1_9_2": "4.17.11",
+          "osv_2_5_1": "4.17.11"
+        }
+      },
+      "arve_pipeline": {
+        "ingestion": "INGESTED",
+        "skip_reason": null,
+        "reaches_scanner": true,
+        "expected_arve_detected": true,
+        "expected_arve_count": 1,
+        "known_arve_divergence": null
       }
     },
     {
@@ -267,6 +469,7 @@
       "finding_type": "dependency",
       "severity": "MEDIUM",
       "file_path": "web/package-lock.json",
+      "file_type": "npm-package-lock",
       "line_start": 29,
       "package_name": "follow-redirects",
       "package_version": "1.14.7",
@@ -281,6 +484,23 @@
         "expected_finding_count": 1,
         "total_records_for_package": 4,
         "additional_advisories": []
+      },
+      "scanner_verification": {
+        "osv_1_9_2": true,
+        "osv_2_5_1": true,
+        "verified": "2026-09-22",
+        "reported_version": {
+          "osv_1_9_2": "1.14.7",
+          "osv_2_5_1": "1.14.7"
+        }
+      },
+      "arve_pipeline": {
+        "ingestion": "INGESTED",
+        "skip_reason": null,
+        "reaches_scanner": true,
+        "expected_arve_detected": true,
+        "expected_arve_count": 1,
+        "known_arve_divergence": null
       }
     },
     {
@@ -289,6 +509,7 @@
       "finding_type": "dependency",
       "severity": "MEDIUM",
       "file_path": "web/package-lock.json",
+      "file_type": "npm-package-lock",
       "line_start": 78,
       "package_name": "minimist",
       "package_version": "1.2.0",
@@ -309,6 +530,23 @@
             "severity": "CRITICAL"
           }
         ]
+      },
+      "scanner_verification": {
+        "osv_1_9_2": true,
+        "osv_2_5_1": true,
+        "verified": "2026-09-22",
+        "reported_version": {
+          "osv_1_9_2": "1.2.0",
+          "osv_2_5_1": "1.2.0"
+        }
+      },
+      "arve_pipeline": {
+        "ingestion": "INGESTED",
+        "skip_reason": null,
+        "reaches_scanner": true,
+        "expected_arve_detected": true,
+        "expected_arve_count": 2,
+        "known_arve_divergence": null
       }
     },
     {
@@ -317,6 +555,7 @@
       "finding_type": "dependency",
       "severity": "MEDIUM",
       "file_path": "web/package-lock.json",
+      "file_type": "npm-package-lock",
       "line_start": 65,
       "package_name": "jquery",
       "package_version": "3.3.1",
@@ -331,6 +570,23 @@
         "expected_finding_count": 1,
         "total_records_for_package": 3,
         "additional_advisories": []
+      },
+      "scanner_verification": {
+        "osv_1_9_2": true,
+        "osv_2_5_1": true,
+        "verified": "2026-09-22",
+        "reported_version": {
+          "osv_1_9_2": "3.3.1",
+          "osv_2_5_1": "3.3.1"
+        }
+      },
+      "arve_pipeline": {
+        "ingestion": "INGESTED",
+        "skip_reason": null,
+        "reaches_scanner": true,
+        "expected_arve_detected": true,
+        "expected_arve_count": 1,
+        "known_arve_divergence": null
       }
     },
     {
@@ -339,6 +595,7 @@
       "finding_type": "dependency",
       "severity": "HIGH",
       "file_path": "web/package-lock.json",
+      "file_type": "npm-package-lock",
       "line_start": 92,
       "package_name": "serialize-javascript",
       "package_version": "2.1.2",
@@ -353,6 +610,23 @@
         "expected_finding_count": 1,
         "total_records_for_package": 2,
         "additional_advisories": []
+      },
+      "scanner_verification": {
+        "osv_1_9_2": true,
+        "osv_2_5_1": true,
+        "verified": "2026-09-22",
+        "reported_version": {
+          "osv_1_9_2": "2.1.2",
+          "osv_2_5_1": "2.1.2"
+        }
+      },
+      "arve_pipeline": {
+        "ingestion": "INGESTED",
+        "skip_reason": null,
+        "reaches_scanner": true,
+        "expected_arve_detected": true,
+        "expected_arve_count": 1,
+        "known_arve_divergence": null
       }
     },
     {
@@ -361,6 +635,7 @@
       "finding_type": "dependency",
       "severity": "MEDIUM",
       "file_path": "web/package-lock.json",
+      "file_type": "npm-package-lock",
       "line_start": 99,
       "package_name": "stringstream",
       "package_version": "0.0.5",
@@ -375,6 +650,23 @@
         "expected_finding_count": 1,
         "total_records_for_package": 1,
         "additional_advisories": []
+      },
+      "scanner_verification": {
+        "osv_1_9_2": true,
+        "osv_2_5_1": true,
+        "verified": "2026-09-22",
+        "reported_version": {
+          "osv_1_9_2": "0.0.5",
+          "osv_2_5_1": "0.0.5"
+        }
+      },
+      "arve_pipeline": {
+        "ingestion": "INGESTED",
+        "skip_reason": null,
+        "reaches_scanner": true,
+        "expected_arve_detected": true,
+        "expected_arve_count": 1,
+        "known_arve_divergence": null
       }
     }
   ],
@@ -798,13 +1090,14 @@
     "requires-port"
   ],
   "expected_gitleaks_finding_count_at_head": 10,
-  "gitleaks_verified_with": "gitleaks 8.30.1, working-tree scan, 2026-08-31",
+  "gitleaks_verified_with": "gitleaks 8.30.1, working-tree scan, 2026-08-31; re-verified 2026-09-22 with gitleaks 8.24.2 (ARVE pinned) and 8.30.1 (reference), dir and git modes",
   "expected_gitleaks_finding_count_full_history": 12,
   "git_history": {
-    "commit_count": 11,
+    "commit_count": 13,
     "built_by": "seed_history.py --force",
     "reproducible": true,
-    "note": "Scan the Git repository, not the filesystem. `gitleaks dir` on a working copy also walks .venv/ and node_modules/ and produces unrelated hits; both are gitignored so a repository scan does not see them."
+    "note": "Scan the Git repository, not the filesystem. `gitleaks dir` on a working copy also walks .venv/ and node_modules/ and produces unrelated hits; both are gitignored so a repository scan does not see them.",
+    "commit_count_note": "13 commits existed before the v1.1 expansion (earlier revisions of this key said 11). The v1.1 expansion appends commits after these 13 without rewriting them; scripts/verify_plants.py reports the live count."
   },
   "osv_baseline": {
     "tool": "osv-scanner 2.5.1",
@@ -823,11 +1116,15 @@
   },
   "normalization_notes": [
     {
-      "observation": "osv-scanner normalises the PyPI version 5.1 to 5.1.0",
-      "detail": "backend/requirements.txt pins `pyyaml==5.1`, but osv-scanner reports package.version as '5.1.0'. Any ARVE fingerprint built from (package, version) will therefore key on 5.1.0, not the 5.1 written in the lockfile. This is not a bug in either tool, but it must be handled deliberately: a naive diff of ARVE output against the raw lockfile text will not match, and a fingerprint that later switches between the two forms would resolve-and-reopen every PyYAML finding.",
+      "observation": "osv-scanner's reported PyYAML version depends on the scanner version: '5.1' on v1.9.2, '5.1.0' on v2.5.1",
+      "detail": "backend/requirements.txt pins `pyyaml==5.1`. osv-scanner v1.9.2 (ARVE's pinned version) reports package.version '5.1' verbatim; v2.5.1 (the reference baseline) reports '5.1.0'. Both report the name lower-cased as 'pyyaml'. So ARVE, today, keys on '5.1', while the committed osv-baseline.json says '5.1.0'. Any fingerprint built from (package, version) would resolve-and-reopen every PyYAML finding if ARVE upgraded its OSV image. Verified 2026-09-22.",
       "affects": [
         "DEP-01"
-      ]
+      ],
+      "by_scanner_version": {
+        "osv_1_9_2": "5.1",
+        "osv_2_5_1": "5.1.0"
+      }
     },
     {
       "observation": "npm versions are reported verbatim",
@@ -846,5 +1143,325 @@
     "gitleaks-baseline.json",
     "osv-baseline.json"
   ],
-  "all_line_numbers_verified": true
+  "all_line_numbers_verified": true,
+  "schema_notes": {
+    "file_type": "language / format label of file_path",
+    "scanner_verification": "whether the scanner detects the plant when it is shown the file (full working tree, or git history for history-only plants). Recorded for ARVE's pinned versions (gitleaks 8.24.2, osv-scanner 1.9.2) and the reference versions (gitleaks 8.30.1, osv-scanner 2.5.1).",
+    "arve_pipeline": "what ARVE is expected to do today, per PROJECT_CONTEXT.md section 3. ingestion comes from scripts/arve_filter_mirror.py (a mirror of ARVE's FileFilter that may drift from ARVE). ingestion values: INGESTED, SKIPPED, or ABSENT_AT_HEAD for history-only plants. reaches_scanner is false when SKIPPED or ABSENT_AT_HEAD. expected_arve_count is the number of findings ARVE should emit for this plant's target (for DEP-* see total_records_for_package for the full inventory).",
+    "negative_controls": "things that must produce zero findings in every scanner version",
+    "known_false_positives": "negative controls a scanner fires on anyway; moved here with the reason",
+    "scanner_limitations": "scanner behaviour discovered while planting that is NOT a plant and NOT scored. Secret values in test strings are replaced by {VALUE}; value_shape says how the tested value was generated, so the test can be re-run with a fresh synthetic value without planting it here."
+  },
+  "expected_gitleaks_finding_count_via_arve_ingestion": 8,
+  "expected_osv_record_count_via_arve_ingestion": 30,
+  "osv_verified_with": "osv-scanner 2.5.1, 2026-08-31; re-verified 2026-09-22 with osv-scanner 1.9.2 (ARVE pinned) and 2.5.1 (reference)",
+  "advisory_drift": [
+    {
+      "observed": "2026-09-22",
+      "package": "lodash 4.17.11 (DEP-03)",
+      "detail": "Record count unchanged (7), but osv.dev now lists extra CVE aliases: GHSA-35jh-r3h4-6jhm and GHSA-r5fr-rjxr-66jc both alias CVE-2021-23337 AND CVE-2026-4800; GHSA-f23m-r3pf-42rh and GHSA-xxjr-mmjv-4gpg both alias CVE-2025-13465 AND CVE-2026-2950. The inventory's single `cve` value per record is the original alias."
+    }
+  ],
+  "files_expected_clean": [
+    {
+      "file_path": "PROJECT_CONTEXT.md",
+      "why": "project brief; contains the AWS documentation example key ID (NEG-01 occurrence) and must produce no finding",
+      "verified": {
+        "gitleaks_8_24_2": 0,
+        "gitleaks_8_30_1": 0,
+        "date": "2026-09-22"
+      }
+    },
+    {
+      "file_path": "plan.md",
+      "why": "build log; contains the AWS documentation example key ID (NEG-01 occurrence)",
+      "verified": {
+        "gitleaks_8_24_2": 0,
+        "gitleaks_8_30_1": 0,
+        "date": "2026-09-22"
+      }
+    },
+    {
+      "file_path": "KICKSTART_PROMPT.md",
+      "why": "original build brief; contains the AWS documentation example key ID (NEG-01 occurrence)",
+      "verified": {
+        "gitleaks_8_24_2": 0,
+        "gitleaks_8_30_1": 0,
+        "date": "2026-09-22"
+      }
+    },
+    {
+      "file_path": "NEW_PROJECT_START_README.md",
+      "why": "original build brief; contains the AWS documentation example key ID (NEG-01 occurrence)",
+      "verified": {
+        "gitleaks_8_24_2": 0,
+        "gitleaks_8_30_1": 0,
+        "date": "2026-09-22"
+      }
+    },
+    {
+      "file_path": "gitleaks-baseline.json",
+      "why": "redacted reference report",
+      "verified": {
+        "gitleaks_8_24_2": 0,
+        "gitleaks_8_30_1": 0,
+        "date": "2026-09-22"
+      }
+    },
+    {
+      "file_path": "osv-baseline.json",
+      "why": "reference report with advisory prose stripped",
+      "verified": {
+        "gitleaks_8_24_2": 0,
+        "gitleaks_8_30_1": 0,
+        "date": "2026-09-22"
+      }
+    },
+    {
+      "file_path": "scripts/arve_filter_mirror.py",
+      "why": "tooling",
+      "verified": {
+        "gitleaks_8_24_2": 0,
+        "gitleaks_8_30_1": 0,
+        "date": "2026-09-22"
+      }
+    }
+  ],
+  "negative_controls": [
+    {
+      "id": "NEG-01",
+      "engine": "gitleaks",
+      "what": "AWS documentation example key ID, which scanners allowlist by default",
+      "why_it_must_not_fire": "gitleaks' aws-access-token rule allowlists values ending in EXAMPLE. A finding here would be a scanner false positive, not a leak.",
+      "occurrences": [
+        {
+          "file_path": "PROJECT_CONTEXT.md",
+          "line": 208,
+          "file_type": "markdown",
+          "ingestion": "INGESTED",
+          "origin": "incidental (project brief, invariant 7)"
+        },
+        {
+          "file_path": "plan.md",
+          "line": 28,
+          "file_type": "markdown",
+          "ingestion": "INGESTED",
+          "origin": "incidental (build log guardrail 5)"
+        },
+        {
+          "file_path": "KICKSTART_PROMPT.md",
+          "line": 40,
+          "file_type": "markdown",
+          "ingestion": "INGESTED",
+          "origin": "incidental (original build brief)"
+        },
+        {
+          "file_path": "NEW_PROJECT_START_README.md",
+          "line": 315,
+          "file_type": "markdown",
+          "ingestion": "INGESTED",
+          "origin": "incidental (original build brief)"
+        }
+      ],
+      "value": "the AWS documentation example access key ID (AKIA prefix + 'EXAMPLE' suffix; written out only in the files listed, not here)",
+      "scanner_verification": {
+        "gitleaks_8_24_2": 0,
+        "gitleaks_8_30_1": 0,
+        "verified": "2026-09-22"
+      },
+      "notes": "A deliberately planted occurrence in a docs file is added in Phase 4 of the v1.1 expansion and will be appended to occurrences."
+    }
+  ],
+  "known_false_positives": [],
+  "scanner_limitations": [
+    {
+      "id": "LIM-01",
+      "engine": "gitleaks",
+      "rule": "mapbox-api-token",
+      "summary": "A Mapbox public token inside a URL is not matched by mapbox-api-token; only generic-api-key fires (via 'access_token=').",
+      "cause": "The rule regex requires the literal keyword 'mapbox' followed only by [ \\t\\w.-]{0,20} and optional quotes before an assignment operator (= : => , etc). In a URL the word 'mapbox' is separated from '=' by '/' and '?', so the keyword context can never match.",
+      "tested_string": "  background-image: url(\"https://api.mapbox.com/styles/v1/mapbox/light-v11/static/-0.12,51.5,4/640x320?access_token={VALUE}\");",
+      "file_tested": "apps/status-page/styles.css (scratch copy outside the repo)",
+      "value_shape": "pk. + 60 random [a-z0-9] + . + 22 random [a-z0-9]",
+      "results": {
+        "gitleaks_8_24_2": {
+          "mapbox-api-token": false,
+          "generic-api-key": true
+        },
+        "gitleaks_8_30_1": {
+          "mapbox-api-token": false,
+          "generic-api-key": true
+        }
+      },
+      "control": {
+        "tested_string": "  mapboxgl.accessToken = \"{VALUE}\";",
+        "results": {
+          "gitleaks_8_24_2": {
+            "mapbox-api-token": true
+          },
+          "gitleaks_8_30_1": {
+            "mapbox-api-token": true
+          }
+        }
+      },
+      "consequence": "A Mapbox token leaked in a CSS/HTML URL is reported under generic-api-key (rule attribution lost) and only because the query parameter name contains 'token'.",
+      "verified": "2026-09-22"
+    },
+    {
+      "id": "LIM-02",
+      "engine": "gitleaks",
+      "rule": "gcp-api-key",
+      "summary": "A Google API key followed by '&' (i.e. not the last query parameter) is not detected by any rule.",
+      "cause": "The rule regex requires the 39-char key to be followed by one of [`'\" \\t\\n;], a literal \\n / \\r escape, or end of line. '&' is not in that set, and [\\w-] stops at '&', so the match fails.",
+      "tested_string": "<script src=\"https://maps.googleapis.com/maps/api/js?key={VALUE}&callback=initMap\"></script>",
+      "file_tested": "apps/status-page/index.html (scratch copy outside the repo)",
+      "value_shape": "AIza + 35 random [A-Za-z0-9_-]",
+      "results": {
+        "gitleaks_8_24_2": {
+          "detected": false,
+          "any_rule": false
+        },
+        "gitleaks_8_30_1": {
+          "detected": false,
+          "any_rule": false
+        }
+      },
+      "control": {
+        "tested_string": "<script async src=\"https://maps.googleapis.com/maps/api/js?callback=initMap&key={VALUE}\"></script>",
+        "results": {
+          "gitleaks_8_24_2": {
+            "gcp-api-key": true
+          },
+          "gitleaks_8_30_1": {
+            "gcp-api-key": true
+          }
+        }
+      },
+      "consequence": "Google's own documented script-tag order (key first, callback second) is invisible to gitleaks. Not planted, because only detectable flaws are planted.",
+      "also_noted": "gcp-api-key's entropy threshold rose from 3 (8.24.2) to 4 (8.30.1); random keys clear both.",
+      "verified": "2026-09-22"
+    },
+    {
+      "id": "LIM-03",
+      "engine": "gitleaks",
+      "rule": "any (observed with algolia-api-key)",
+      "summary": "StartColumn is wrong for a secret deep inside a very long single line, and differs between gitleaks versions.",
+      "cause": "Most likely dir-mode chunked reading: the column is computed relative to the chunk, not the line. Line number is correct.",
+      "tested_string": "a ~154 KB single-line minified bundle ending in `var cfg={algoliaAppId:\"...\",algoliaAdminKey:\"{VALUE}\"};`",
+      "file_tested": "apps/admin-ui/public/vendor.min.js (scratch copy; planted later as SEC-24)",
+      "value_shape": "32 random [a-z0-9]",
+      "results": {
+        "true_column": 154382,
+        "gitleaks_8_24_2": {
+          "line": 1,
+          "start_column": 29365
+        },
+        "gitleaks_8_30_1": {
+          "line": 1,
+          "start_column": 693
+        }
+      },
+      "consequence": "Not a scoring input: ARVE's NormalizedFinding has no column fields. Documented as a scanner curiosity so nobody scores or debugs it. Columns were stable across repeated runs of each version.",
+      "verified": "2026-09-22"
+    }
+  ],
+  "coverage_matrix": {
+    "rows": [
+      {
+        "file_type": "dotenv-template",
+        "engine": "gitleaks",
+        "ingestion": "SKIPPED",
+        "skip_reason": "unsupported_file_type",
+        "plants": [
+          "SEC-08"
+        ],
+        "locations": 1
+      },
+      {
+        "file_type": "github-actions-yaml",
+        "engine": "gitleaks",
+        "ingestion": "INGESTED",
+        "skip_reason": null,
+        "plants": [
+          "SEC-02"
+        ],
+        "locations": 1
+      },
+      {
+        "file_type": "markdown",
+        "engine": "gitleaks",
+        "ingestion": "INGESTED",
+        "skip_reason": null,
+        "plants": [
+          "SEC-09"
+        ],
+        "locations": 1
+      },
+      {
+        "file_type": "pem",
+        "engine": "gitleaks",
+        "ingestion": "SKIPPED",
+        "skip_reason": "unsupported_file_type",
+        "plants": [
+          "SEC-03"
+        ],
+        "locations": 1
+      },
+      {
+        "file_type": "python",
+        "engine": "gitleaks",
+        "ingestion": "ABSENT_AT_HEAD",
+        "skip_reason": null,
+        "plants": [
+          "SEC-04"
+        ],
+        "locations": 1
+      },
+      {
+        "file_type": "python",
+        "engine": "gitleaks",
+        "ingestion": "INGESTED",
+        "skip_reason": null,
+        "plants": [
+          "SEC-01",
+          "SEC-05",
+          "SEC-06",
+          "SEC-07"
+        ],
+        "locations": 5
+      },
+      {
+        "file_type": "npm-package-lock",
+        "engine": "osv",
+        "ingestion": "INGESTED",
+        "skip_reason": null,
+        "plants": [
+          "DEP-03",
+          "DEP-04",
+          "DEP-05",
+          "DEP-06",
+          "DEP-07",
+          "DEP-08"
+        ],
+        "locations": 6
+      },
+      {
+        "file_type": "pip-requirements",
+        "engine": "osv",
+        "ingestion": "INGESTED",
+        "skip_reason": null,
+        "plants": [
+          "DEP-01",
+          "DEP-02"
+        ],
+        "locations": 2
+      }
+    ],
+    "totals": {
+      "plants": 17,
+      "plants_reaching_arve_scanner": 14,
+      "plants_skipped_at_ingestion": 2,
+      "plants_history_only": 1
+    }
+  }
 }
