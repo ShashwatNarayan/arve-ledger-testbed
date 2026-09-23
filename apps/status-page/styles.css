@@ -1,0 +1,53 @@
+/* Public status page for the ledger API.
+   Plain CSS on purpose: this page has to render when everything else is down. */
+
+:root {
+  --ok: #1c7c4a;
+  --degraded: #b06f13;
+  --down: #a62828;
+  --ink: #16181d;
+  --paper: #ffffff;
+  --rule: #e3e6eb;
+}
+
+body {
+  margin: 0;
+  font: 15px/1.55 -apple-system, "Segoe UI", Roboto, sans-serif;
+  color: var(--ink);
+  background: var(--paper);
+}
+
+.wrap {
+  max-width: 62rem;
+  margin: 0 auto;
+  padding: 2.5rem 1rem 4rem;
+}
+
+.status-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.85rem 0;
+  border-bottom: 1px solid var(--rule);
+}
+
+.pill { border-radius: 999px; padding: 0.15rem 0.65rem; font-size: 0.82rem; color: #fff; }
+.pill.ok { background: var(--ok); }
+.pill.degraded { background: var(--degraded); }
+.pill.down { background: var(--down); }
+
+/* Static map of the settlement regions, rendered server-side by Google so the
+   status page has no JavaScript dependency for the regional view.
+   TESTBED SEC-12 - intentional, see EXPECTED_FINDINGS.md */
+.region-map {
+  height: 18rem;
+  border: 1px solid var(--rule);
+  border-radius: 6px;
+  background-repeat: no-repeat;
+  background-size: cover;
+  background-image: url("https://maps.googleapis.com/maps/api/staticmap?center=48.2,9.4&zoom=4&size=640x320&scale=2&key=AIzaMABJntpdpjZUcO11wSpeGtNsKHVbK1HlrVS");
+}
+
+.incident { border-left: 3px solid var(--degraded); padding-left: 0.9rem; margin: 1.4rem 0; }
+.incident time { color: #5b6270; font-size: 0.85rem; }
+footer { margin-top: 3rem; color: #5b6270; font-size: 0.85rem; }

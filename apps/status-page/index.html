@@ -1,0 +1,46 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Acme Ledger — Status</title>
+  <link rel="stylesheet" href="styles.css">
+  <script src="https://api.mapbox.com/mapbox-gl-js/v3.4.0/mapbox-gl.js"></script>
+  <link href="https://api.mapbox.com/mapbox-gl-js/v3.4.0/mapbox-gl.css" rel="stylesheet">
+</head>
+<body>
+  <div class="wrap">
+    <h1>Acme Ledger status</h1>
+    <p>Live availability for the ledger API and the settlement pipeline.</p>
+
+    <div class="status-row"><span>Ledger API</span><span class="pill ok">Operational</span></div>
+    <div class="status-row"><span>Webhooks</span><span class="pill ok">Operational</span></div>
+    <div class="status-row"><span>Settlement transfer</span><span class="pill degraded">Degraded</span></div>
+    <div class="status-row"><span>Operator console</span><span class="pill ok">Operational</span></div>
+
+    <h2>Settlement regions</h2>
+    <div class="region-map" aria-label="Map of settlement regions"></div>
+    <div id="live-map" style="height: 18rem"></div>
+
+    <div class="incident">
+      <time datetime="2026-08-29T02:10:00Z">29 Aug 2026, 02:10 UTC</time>
+      <p>Settlement file transfer retried three times before succeeding. No ledger
+         entries were affected. Investigating with the bank.</p>
+    </div>
+
+    <footer>Updated every 60 seconds. History for the last 90 days.</footer>
+  </div>
+
+  <!-- Interactive regional map. Public token, restricted by HTTP referrer.
+       TESTBED SEC-13 - intentional, see EXPECTED_FINDINGS.md -->
+  <script>
+    mapboxgl.accessToken = "pk.4l1t522qa4u9guddsnkusn8vf3vu8ev8bt25dvdi56l91fkqna7p692hbumr.y55onbbo0eirtm4nvrjdi1";
+    const map = new mapboxgl.Map({
+      container: "live-map",
+      style: "mapbox://styles/mapbox/light-v11",
+      center: [9.4, 48.2],
+      zoom: 3
+    });
+  </script>
+</body>
+</html>
