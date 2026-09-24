@@ -1,0 +1,13 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: admin-ui-config
+  namespace: ledger
+data:
+  LEDGER_API_BASE: "http://ledger-api.ledger.svc.cluster.local:8000"
+  ANALYTICS_COLLECTOR: "https://events.acme-ledger.example/v1/batch"
+  # The collector authenticates writers by key, so the console, the export job
+  # and this config all carry the same value.
+  # TESTBED SEC-23 - intentional, see EXPECTED_FINDINGS.md
+  analytics_api_key: "2pbKj4vjM4MLSSi3TznlDuljvMWfvROl69eEa3Sq"
+  SESSION_IDLE_MINUTES: "30"
