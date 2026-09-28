@@ -896,3 +896,456 @@ CVE-2021-23337 **and** CVE-2026-4800, and `GHSA-f23m-r3pf-42rh` /
 `GHSA-xxjr-mmjv-4gpg` alias both CVE-2025-13465 **and** CVE-2026-2950. The
 inventory records the original alias for each. This is the world changing, not a
 tool misbehaving.
+
+---
+
+# Group C — v1.1 secrets (`SEC-10` …)
+
+New secret plants spread across file types, ecosystems and normalizer edge
+cases. Every one records **where in ARVE's pipeline it is lost**, if it is lost:
+an ingestion gap (the file never reaches a scanner), a scanner gap (the pinned
+scanner does not detect it), or a normalizer gap (detected, then collapsed or
+mangled in mapping).
+
+Each was verified against **all four** scanner versions at the moment it was
+planted — ARVE-pinned gitleaks **8.24.2** and reference **8.30.1** — and the
+result is recorded per plant. Unless a plant says otherwise, both versions
+report the identical rule, file and line.
+
+---
+
+## SEC-10 — GitHub token in Java source
+
+**Planted:** a GitHub machine-user token for the private ops-config repository,
+as the hardcoded fallback for `OPS_CONFIG_TOKEN`.
+
+| | |
+|---|---|
+| File | `services/settlement-java/src/main/java/com/acmeledger/settlement/GatewayClient.java` line **25** |
+| File type | `java` |
+| Engine | `gitleaks` |
+| Rule | `github-pat` |
+| Severity | `HIGH` (ARVE will report `MEDIUM` — mapper hard-codes it) |
+| ARVE ingestion | ✅ INGESTED |
+| Expected findings | 1 (ARVE: 1) |
+
+**What this tests:** a JVM source path. The file sits five directories deep
+under `src/main/java`, which is where JVM code always lives and where shallow
+path handling breaks.
+
+**Verified:** detected by 8.24.2 and 8.30.1 at line 25, column 50. The Twilio
+account SID on the neighbouring properties file is a real *shape* but not a
+credential, and correctly produces nothing.
+
+---
+
+## SEC-11 — Twilio key in `application.properties` ⛔ ingestion gap
+
+**Planted:** the Twilio API key used for settlement-failure SMS alerts, in the
+Spring-style properties file.
+
+| | |
+|---|---|
+| File | `services/settlement-java/src/main/resources/application.properties` line **12** |
+| File type | `java-properties` |
+| Engine | `gitleaks` |
+| Rule | `twilio-api-key` |
+| Severity | `HIGH` |
+| ARVE ingestion | ⛔ **SKIPPED** `unsupported_file_type` |
+| Expected findings | 1 on disk — **0 from ARVE** |
+
+**What this tests:** **an ingestion gap, isolated.** Both gitleaks versions
+detect this at line 12 when shown the file, so a miss here is *provably* ARVE's
+Phase 2 filter and not a scanner limitation. `.properties` is not in the
+extension allow-list, and `os.path.splitext` gives `.properties`, which matches
+nothing.
+
+`application.properties` is where JVM services conventionally keep credentials,
+which makes it arguably the most valuable extension missing from the allow-list.
+
+**Do not "fix" this by renaming the file.** Surfacing the gap is the point —
+see `ARVE_ISSUES.md` issue 1.
+
+---
+
+## SEC-12 — Google API key inside a CSS `url()`
+
+**Planted:** a Google Static Maps key in the `background-image` of the status
+page's regional map.
+
+| | |
+|---|---|
+| File | `apps/status-page/styles.css` line **48** |
+| File type | `css` |
+| Engine | `gitleaks` |
+| Rule | `gcp-api-key` |
+| Severity | `HIGH` |
+| ARVE ingestion | ✅ INGESTED |
+| Expected findings | 1 (ARVE: 1) |
+
+**What this tests:** a credential inside a stylesheet — a file type nobody
+thinks of as holding secrets, in a URL rather than an assignment.
+
+**⚠ Shape constraint that silently breaks this plant.** The key **must be the
+last query parameter**. `gcp-api-key` requires the value to be followed by a
+quote, whitespace, semicolon or end of line. `&` is not in that set, so
+
+```
+?key=AIza...&callback=initMap      → detected by NO rule, in either version
+?center=...&key=AIza..."           → detected
+```
+
+Google's own documented script-tag order is the undetectable one. Recorded as
+`LIM-02` in `scanner_limitations`.
+
+**Version difference worth knowing:** `gcp-api-key`'s entropy threshold rose
+from **3** (8.24.2) to **4** (8.30.1). A random 35-character value clears both;
+a low-entropy one would pass the pinned version and fail the reference.
+
+---
+
+## SEC-13 — Mapbox token in an inline `<script>`
+
+**Planted:** a Mapbox public access token assigned to `mapboxgl.accessToken`,
+exactly as Mapbox's own documentation shows it.
+
+| | |
+|---|---|
+| File | `apps/status-page/index.html` line **37** |
+| File type | `html` |
+| Engine | `gitleaks` |
+| Rule | `mapbox-api-token` |
+| Severity | **`MEDIUM`** (deliberately not HIGH) |
+| ARVE ingestion | ✅ INGESTED |
+| Expected findings | 1 (ARVE: 1) |
+
+**What this tests:** a vendor rule firing in HTML, and **severity that is not
+uniform**. A Mapbox public token is referrer-restricted by design, so this is a
+real leak but a milder one. ARVE currently reports `MEDIUM` for every secret, so
+it will agree with this one **for the wrong reason** — which is exactly why
+having a genuinely-MEDIUM secret in the set is useful once severity is fixed.
+
+**⚠ The same token in a URL is invisible to this rule.** Written as
+`?access_token=pk...` inside a `url()`, `mapbox-api-token` does **not** match —
+the rule needs the literal word `mapbox` immediately before the `=`. Only
+`generic-api-key` fires, so the vendor attribution is lost. Recorded as
+`LIM-01`.
+
+---
+
+## SEC-14 — GitLab token in TypeScript
+
+**Planted:** a GitLab `read_api` token in the admin console's deploy-status
+widget.
+
+| | |
+|---|---|
+| File | `apps/admin-ui/src/deployStatus.ts` line **15** |
+| File type | `typescript` · Rule `gitlab-pat` · Severity `HIGH` |
+| ARVE ingestion | ✅ INGESTED · Expected findings 1 (ARVE: 1) |
+
+**What this tests:** the `.ts` extension. Deliberately an easy plant — its value
+is file-type coverage, not difficulty. Detected by both versions at line 15.
+
+---
+
+## SEC-15 — npm token in `.npmrc` ⛔ ingestion gap
+
+**Planted:** an npm registry auth token on the conventional
+`//registry.npmjs.org/:_authToken=` line.
+
+| | |
+|---|---|
+| File | `apps/admin-ui/.npmrc` line **6** |
+| File type | `npmrc` · Rule `npm-access-token` · Severity `HIGH` |
+| ARVE ingestion | ⛔ **SKIPPED** `unsupported_file_type` · 1 on disk, **0 from ARVE** |
+
+**What this tests:** **dotfiles with no extension.** `os.path.splitext('.npmrc')`
+returns `''` — for any dotfile the whole name is the stem. This is the same
+behaviour that makes the `.env` entry in ARVE's allow-list unreachable, so this
+plant and SEC-08 fail for one shared root cause.
+
+An npm publish token is a supply-chain credential, which is what makes this
+class of file worth ingesting.
+
+---
+
+## SEC-23 — one credential, three file types
+
+**Planted:** one analytics collector write key, byte-identical in three files.
+
+| | |
+|---|---|
+| Files | `apps/admin-ui/src/analyticsClient.js` line **11** (`javascript`) |
+| | `ops/k8s/admin-ui-config.yaml` line **12** (`kubernetes-yaml`) |
+| | `tools/analytics_export.py` line **17** (`python`) |
+| Rule | `generic-api-key` · Severity `HIGH` |
+| ARVE ingestion | ✅ all three INGESTED |
+| **Expected findings** | **3** (ARVE: 3) |
+
+**What this tests:** **SEC-05 widened.** SEC-05 puts one secret in two files of
+the *same* type; this puts one secret in three *different* types. Gitleaks
+reports three findings with three distinct fingerprints, because the dir-mode
+fingerprint is `file:rule:line`.
+
+So ARVE reports **3 findings for 1 leaked credential**. Rotating the key closes
+three at once; fixing one file leaves two open pointing at stale paths. Either
+choice is defensible — it has to be deliberate.
+
+Read this next to **SEC-22**, where two *different* credentials collapse into
+*one* fingerprint. The identity field is wrong in both directions at once.
+
+---
+
+## SEC-24 — admin key in a minified bundle
+
+**Planted:** an Algolia **admin** key (not a search key) inlined into a
+generated vendor bundle — which is how this leak really happens.
+
+| | |
+|---|---|
+| File | `apps/admin-ui/public/vendor.min.js` line **1** |
+| File type | `javascript-minified` · Rule `algolia-api-key` · Severity `HIGH` |
+| ARVE ingestion | ✅ INGESTED · Expected findings 1 (ARVE: 1) |
+
+**What this tests:** long-line handling. The file is a single **154,478-byte
+line** and the secret sits at column **154444**. Both versions find it on line 1.
+
+**The reported column is wrong, and the two versions disagree:**
+
+| | Column |
+|---|---|
+| True position | **154444** |
+| gitleaks 8.24.2 | 29427 |
+| gitleaks 8.30.1 | 755 |
+
+**This is not part of the plant's expected values and must not be scored.**
+ARVE's `NormalizedFinding` has no column field, so the wrong value is dropped in
+mapping rather than stored. Recorded as `LIM-03`.
+
+**Naming matters:** gitleaks' global allowlist exempts named vendor bundles
+(`jquery*`, `angular*`, `bootstrap*`, `plotly*`, `swagger-ui*`). Calling this
+file `jquery.min.js` would have silently suppressed the finding.
+
+---
+
+## SEC-16 — Slack bot token in Go
+
+| | |
+|---|---|
+| File | `services/reconciler-go/main.go` line **23** |
+| File type | `go` · Rule `slack-bot-token` · Severity `HIGH` |
+| ARVE ingestion | ✅ INGESTED · Expected findings 1 (ARVE: 1) |
+
+**What this tests:** Go source. The `go.mod` beside it carries **DEP-11**, so
+this one service exercises the secret and dependency paths together.
+
+---
+
+## SEC-17 — Hugging Face token on a Dockerfile `ENV` line
+
+| | |
+|---|---|
+| File | `ops/Dockerfile` line **6** |
+| File type | `dockerfile` · Rule `huggingface-access-token` · Severity `HIGH` |
+| ARVE ingestion | ✅ INGESTED · Expected findings 1 (ARVE: 1) |
+
+**What this tests:** the **filename** allow-list rather than the extension list.
+`Dockerfile` has no extension at all — `splitext` gives `''`, exactly as for
+`.npmrc` — but `dockerfile` is an allowed *filename*, so it is ingested while
+SEC-15 is not. The two plants together show that the allow-list, not the
+absence of an extension, decides.
+
+A token on an `ENV` line also persists into every layer of the built image.
+
+---
+
+## SEC-18 — EC private key in a Kubernetes Secret ✅ the control for SEC-03
+
+| | |
+|---|---|
+| File | `ops/k8s/secrets.yaml` line **12** |
+| File type | `kubernetes-yaml` · Rule `private-key` · Severity `HIGH` |
+| ARVE ingestion | ✅ INGESTED · Expected findings 1 (ARVE: 1) |
+
+**What this tests:** **the same rule as SEC-03, in a file ARVE actually
+ingests.** A genuine throwaway EC P-256 key, indented inside `stringData`.
+
+| | File type | Ingestion | ARVE |
+|---|---|---|---|
+| SEC-03 | `.pem` | ⛔ SKIPPED | 0 |
+| **SEC-18** | `.yaml` | ✅ INGESTED | 1 |
+
+If ARVE reports SEC-18 but not SEC-03, the difference is **provably ingestion**
+and not the `private-key` rule. Without this control, SEC-03's absence is
+ambiguous.
+
+The adjacent fake `CERTIFICATE` block correctly produces nothing.
+
+---
+
+## SEC-19 — Terraform Cloud token in `main.tf` ⛔ ingestion gap
+
+| | |
+|---|---|
+| File | `ops/terraform/main.tf` line **17** |
+| File type | `terraform` · Rule `hashicorp-tf-api-token` · Severity `HIGH` |
+| ARVE ingestion | ⛔ **SKIPPED** `unsupported_file_type` · 1 on disk, **0 from ARVE** |
+
+**What this tests:** **infrastructure-as-code.** Both versions detect it at line
+17 when shown the file. `.tf` and `.tfvars` are both missing from the allow-list,
+so the file type where cloud credentials concentrate is entirely invisible.
+
+---
+
+## SEC-20 — Shopify token in a shell script
+
+| | |
+|---|---|
+| File | `ops/scripts/backup.sh` line **14** |
+| File type | `shell` · Rule `shopify-access-token` · Severity `HIGH` |
+| ARVE ingestion | ✅ INGESTED · Expected findings 1 (ARVE: 1) |
+
+**What this tests:** operational glue, where long-lived tokens survive longest.
+Pairs with SEC-26 below.
+
+---
+
+## SEC-26 — PyPI token under `ops/build/` ⛔ ingestion gap (directory filter)
+
+| | |
+|---|---|
+| File | `ops/build/publish.sh` line **12** |
+| File type | `shell` · Rule `pypi-upload-token` · Severity `HIGH` |
+| ARVE ingestion | ⛔ **SKIPPED** `ignored_directory` · 1 on disk, **0 from ARVE** |
+
+**What this tests:** **the directory filter, isolated.** SEC-20 and SEC-26 are
+both `.sh` files with vendor-rule tokens. The *only* difference is one path
+segment:
+
+| | Path | Ingestion |
+|---|---|---|
+| SEC-20 | `ops/scripts/backup.sh` | ✅ INGESTED |
+| **SEC-26** | `ops/**build**/publish.sh` | ⛔ SKIPPED `ignored_directory` |
+
+The ignored-directory list (`build`, `dist`, `target`, `vendor`, `coverage`, …)
+exists to skip *generated* output. But `build` also names hand-written release
+tooling — and this file is tracked in Git, not generated. `.gitignore`
+deliberately does not ignore `ops/build/`, so it really is committed.
+
+The skip happens **before** the size and extension checks, so nothing later can
+rescue it.
+
+---
+
+## SEC-21 — JWT in a SQL seed file
+
+| | |
+|---|---|
+| File | `db/seed.sql` line **13** |
+| File type | `sql` · Rule `jwt` · Severity `HIGH` |
+| ARVE ingestion | ✅ INGESTED · Expected findings 1 (ARVE: 1) |
+
+**What this tests:** a third *rule class*. Not a vendor prefix (SEC-10, SEC-14,
+SEC-16 …) and not entropy-next-to-a-keyword (SEC-07, SEC-22, SEC-23), but
+**document structure** — `header.payload.signature`, base64url.
+
+The header and payload decode to real JSON; the signature is 32 random bytes, so
+the token is correctly shaped and verifies against nothing.
+
+---
+
+## SEC-22 — two different secrets on one line 🔁 normalizer collapse
+
+**Planted:** a rotation pair — two *different* 40-character credentials — in one
+dict literal on a single line.
+
+| | |
+|---|---|
+| File | `tools/sync_keys.py` line **16** (columns 15 and 78) |
+| File type | `python` · Rule `generic-api-key` · Severity `HIGH` |
+| ARVE ingestion | ✅ INGESTED |
+| Gitleaks findings | **2** |
+| **Expected ARVE findings** | **1 — the second credential is silently lost** |
+
+**What this tests:** **`secret_hash` identity.** Both versions report two
+findings, and both carry the *identical* fingerprint:
+
+```
+tools/sync_keys.py:generic-api-key:16     ← column 15
+tools/sync_keys.py:generic-api-key:16     ← column 78
+```
+
+ARVE sets `secret_hash` to that fingerprint. Because it also passes `--redact`,
+there is **no secret value** to disambiguate with, and `StartColumn` — the only
+field that differs — is not carried on `NormalizedFinding` (and is unreliable
+anyway, see `LIM-03`). So two leaked credentials become one finding, and only
+one gets rotated.
+
+**Do not "fix" this** by moving the secrets onto separate lines. The collapse is
+the measurement. See `ARVE_ISSUES.md` issue 3.
+
+Read together with **SEC-23**: one credential in three files becomes three
+findings, while two credentials on one line become one. The identity field is
+wrong in both directions.
+
+---
+
+## SEC-25 — Square token in a 1.2 MB fixture ⛔ ingestion gap (size limit)
+
+| | |
+|---|---|
+| File | `db/fixtures/merchant_export.json` line **38901** |
+| File type | `json-fixture` · Rule `square-access-token` · Severity `HIGH` |
+| ARVE ingestion | ⛔ **SKIPPED** `file_too_large` · 1 on disk, **0 from ARVE** |
+
+**What this tests:** **the size limit.** The file is **1,262,651 bytes** against
+a **1,048,576-byte** cap — 214,075 bytes over.
+
+| | |
+|---|---|
+| File size | 1,262,651 bytes |
+| ARVE limit | 1,048,576 bytes |
+| Extension | `.json` — allowed, but never reached |
+
+The size check runs **before** the extension check, so being an allowed type
+cannot rescue it. Large exports, database dumps and fixtures are exactly where
+bulk credential leaks hide. The other 5,399 merchant records contain no
+credential-shaped values and produce nothing.
+
+---
+
+## SEC-27 — a secret rotated in place 🔁 lifecycle
+
+**Planted:** a New Relic ingest key whose value is **changed in place** in a
+later commit — same file, same line, different value.
+
+| | |
+|---|---|
+| File | `services/notifier-rust/notifier.toml` line **14** |
+| File type | `toml` · Rule `new-relic-user-api-key` · Severity `HIGH` |
+| ARVE ingestion | ✅ INGESTED |
+| Reference `gitleaks git` | **2 findings** — pre- and post-rotation values |
+| **Expected ARVE findings** | **1, continuously OPEN — the rotation is never observed** |
+
+**What this tests:** the rotation lifecycle. **This divergence is expected
+behaviour to record, not a defect in the plant:**
+
+- ARVE scans **only HEAD**, so the old value does not exist for it.
+- The dir-mode fingerprint `file:rule:line` is **identical** before and after,
+  so even with history the two would share one identity.
+
+A replaced credential is therefore indistinguishable from an untouched one. The
+finding never transitions — it is not RESOLVED for the old key and not reopened
+for the new one.
+
+This completes a set of three:
+
+| Plant | Change | Gitleaks sees | Consequence |
+|---|---|---|---|
+| **SEC-06** | same value, **line moves** | 2 fingerprints | looks like a *new* leak |
+| **SEC-22** | different values, **same line** | 1 fingerprint | two leaks become *one* |
+| **SEC-27** | **value replaced**, same line | 1 fingerprint at HEAD | rotation is *invisible* |
+
+The pre-rotation value is derived from a fixed seed by `seed_history.py` and
+never appears at HEAD. The rotation commit and its hash are added in Phase 5.

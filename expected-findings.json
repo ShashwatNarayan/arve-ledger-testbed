@@ -5,10 +5,10 @@
   "advisory_data_verified": "2026-08-31",
   "verification_method": "osv.dev /v1/query, with every returned advisory re-checked against its own affected ranges",
   "planted_finding_count": {
-    "total": 17,
-    "secrets": 9,
+    "total": 35,
+    "secrets": 27,
     "dependencies": 8,
-    "recorded_so_far": 17
+    "recorded_so_far": 35
   },
   "expected_osv_record_count": 30,
   "line_numbers_verified_at_final_commit": true,
@@ -226,7 +226,9 @@
           "moved_commit": "dc9a9d69",
           "moved_to_line": 22,
           "secret_value_changed": false
-        }
+        },
+        "history_extra_findings": 1,
+        "history_extra_note": "gitleaks git also reports the same value at webhooks.py:43 in commit 4da4e7e2, before the refactor moved it"
       },
       "scanner_verification": {
         "gitleaks_8_24_2": true,
@@ -668,6 +670,639 @@
         "expected_arve_count": 1,
         "known_arve_divergence": null
       }
+    },
+    {
+      "id": "SEC-10",
+      "engine": "gitleaks",
+      "finding_type": "secret",
+      "severity": "HIGH",
+      "file_path": "services/settlement-java/src/main/java/com/acmeledger/settlement/GatewayClient.java",
+      "file_type": "java",
+      "line_start": 25,
+      "rule_id": "github-pat",
+      "history_only": false,
+      "tests": "a JVM source path - Java lives several directories deep and is easy to miss with shallow path handling",
+      "notes": "Shape ghp_ + 36 alphanumerics, matched by a named-vendor rule. Deliberately NOT a generic-api-key plant: the point is the file type and the deep src/main/java path, not the rule. Detected at line 25 column 50 by both gitleaks versions.",
+      "testbed": {
+        "expected_finding_count": 1,
+        "what_was_planted": "GitHub machine-user token for the private ops-config repository, hardcoded as the fallback for OPS_CONFIG_TOKEN.",
+        "additional_locations": []
+      },
+      "scanner_verification": {
+        "gitleaks_8_24_2": true,
+        "gitleaks_8_30_1": true,
+        "mode": "dir",
+        "verified": "2026-09-22",
+        "note": "detected by both versions at line 25; the neighbouring Twilio account SID (AC...) is not a secret shape and correctly produces nothing"
+      },
+      "arve_pipeline": {
+        "ingestion": "INGESTED",
+        "skip_reason": null,
+        "reaches_scanner": true,
+        "expected_arve_detected": true,
+        "expected_arve_count": 1,
+        "known_arve_divergence": "severity reported as MEDIUM: ARVE's gitleaks mapper hard-codes MEDIUM for every secret (intended HIGH)"
+      }
+    },
+    {
+      "id": "SEC-11",
+      "engine": "gitleaks",
+      "finding_type": "secret",
+      "severity": "HIGH",
+      "file_path": "services/settlement-java/src/main/resources/application.properties",
+      "file_type": "java-properties",
+      "line_start": 12,
+      "rule_id": "twilio-api-key",
+      "history_only": false,
+      "tests": "INGESTION GAP: Java config. .properties is not in ARVE's extension allow-list, so the file never reaches a scanner",
+      "notes": "Shape SK + 32 hex. Both gitleaks versions detect it at line 12 when shown the file, so any ARVE miss here is an ingestion gap and not a scanner gap - that distinction is the whole point of this plant. application.properties is where JVM services conventionally keep credentials, which makes this the single most valuable extension missing from the allow-list. The twilio.account-sid on line 11 is a real-shaped SID but not a credential, and correctly produces no finding.",
+      "testbed": {
+        "expected_finding_count": 1,
+        "what_was_planted": "Twilio API key for the settlement failure SMS alerts, in the Spring-style properties file.",
+        "additional_locations": []
+      },
+      "scanner_verification": {
+        "gitleaks_8_24_2": true,
+        "gitleaks_8_30_1": true,
+        "mode": "dir",
+        "verified": "2026-09-22",
+        "note": "detected by both versions at line 12 when the file is scanned directly; invisible to ARVE because ingestion drops it"
+      },
+      "arve_pipeline": {
+        "ingestion": "SKIPPED",
+        "skip_reason": "unsupported_file_type",
+        "reaches_scanner": false,
+        "expected_arve_detected": false,
+        "expected_arve_count": 0,
+        "known_arve_divergence": "INGESTION GAP: os.path.splitext gives '.properties', which is in no allow-list, so the file is SKIPPED unsupported_file_type and no scanner ever sees it"
+      }
+    },
+    {
+      "id": "SEC-12",
+      "engine": "gitleaks",
+      "finding_type": "secret",
+      "severity": "HIGH",
+      "file_path": "apps/status-page/styles.css",
+      "file_type": "css",
+      "line_start": 48,
+      "rule_id": "gcp-api-key",
+      "history_only": false,
+      "tests": "a secret inside a CSS url() - a stylesheet is not usually thought of as a place credentials live",
+      "notes": "Google Static Maps key in a background-image url(). Shape AIza + 35 [A-Za-z0-9_-]. IMPORTANT (see scanner_limitations LIM-02): the key MUST be the last query parameter. gcp-api-key requires the value to be followed by a quote, whitespace, semicolon or end of line, and '&' is not in that set, so the same key written as ?key=...&callback=... is detected by NO rule in either version. The planted form ends with '\")' so it matches. Also note gcp-api-key's entropy threshold rose from 3 (8.24.2) to 4 (8.30.1); a random 35-char value clears both.",
+      "testbed": {
+        "expected_finding_count": 1,
+        "what_was_planted": "Google Static Maps API key in the regional-map background image of the public status page.",
+        "additional_locations": []
+      },
+      "scanner_verification": {
+        "gitleaks_8_24_2": true,
+        "gitleaks_8_30_1": true,
+        "mode": "dir",
+        "verified": "2026-09-22",
+        "note": "detected by both versions at line 48 column 122; the mapbox-gl CDN <link>/<script> URLs on the same page carry no key and correctly produce nothing"
+      },
+      "arve_pipeline": {
+        "ingestion": "INGESTED",
+        "skip_reason": null,
+        "reaches_scanner": true,
+        "expected_arve_detected": true,
+        "expected_arve_count": 1,
+        "known_arve_divergence": "severity reported as MEDIUM: ARVE's gitleaks mapper hard-codes MEDIUM for every secret (intended HIGH)"
+      }
+    },
+    {
+      "id": "SEC-13",
+      "engine": "gitleaks",
+      "finding_type": "secret",
+      "severity": "MEDIUM",
+      "file_path": "apps/status-page/index.html",
+      "file_type": "html",
+      "line_start": 37,
+      "rule_id": "mapbox-api-token",
+      "history_only": false,
+      "tests": "a vendor rule in HTML, in an inline <script> block rather than in application source",
+      "notes": "Shape pk. + 60 [a-z0-9] + . + 22 [a-z0-9], assigned to mapboxgl.accessToken exactly as Mapbox's own docs show. Severity is intended MEDIUM rather than HIGH: a Mapbox public token is referrer-restricted by design, so this is a real but lower-impact leak - useful for checking ARVE does not treat every secret as equally severe (today it cannot, see arve_pipeline). See scanner_limitations LIM-01: the SAME token inside a URL (?access_token=pk...) is NOT matched by mapbox-api-token at all, because the rule needs the literal word 'mapbox' immediately before the '='; only generic-api-key fires there.",
+      "testbed": {
+        "expected_finding_count": 1,
+        "what_was_planted": "Mapbox public access token assigned to mapboxgl.accessToken in an inline script on the status page.",
+        "additional_locations": []
+      },
+      "scanner_verification": {
+        "gitleaks_8_24_2": true,
+        "gitleaks_8_30_1": true,
+        "mode": "dir",
+        "verified": "2026-09-22",
+        "note": "detected by both versions at line 37 column 6"
+      },
+      "arve_pipeline": {
+        "ingestion": "INGESTED",
+        "skip_reason": null,
+        "reaches_scanner": true,
+        "expected_arve_detected": true,
+        "expected_arve_count": 1,
+        "known_arve_divergence": "severity reported as MEDIUM by ARVE's hard-coded mapper, which happens to match this finding's intended MEDIUM - for the wrong reason"
+      }
+    },
+    {
+      "id": "SEC-14",
+      "engine": "gitleaks",
+      "finding_type": "secret",
+      "severity": "HIGH",
+      "file_path": "apps/admin-ui/src/deployStatus.ts",
+      "file_type": "typescript",
+      "line_start": 15,
+      "rule_id": "gitlab-pat",
+      "history_only": false,
+      "tests": "TypeScript source - a first-party file type the existing testbed did not cover",
+      "notes": "Shape glpat- + 20 [A-Za-z0-9_-]. Straightforward vendor-rule plant; its value is coverage of the .ts extension rather than rule difficulty.",
+      "testbed": {
+        "expected_finding_count": 1,
+        "what_was_planted": "GitLab read_api personal access token used by the admin console's deploy status widget.",
+        "additional_locations": []
+      },
+      "scanner_verification": {
+        "gitleaks_8_24_2": true,
+        "gitleaks_8_30_1": true,
+        "mode": "dir",
+        "verified": "2026-09-22",
+        "note": "detected by both versions at line 15 column 24"
+      },
+      "arve_pipeline": {
+        "ingestion": "INGESTED",
+        "skip_reason": null,
+        "reaches_scanner": true,
+        "expected_arve_detected": true,
+        "expected_arve_count": 1,
+        "known_arve_divergence": "severity reported as MEDIUM: ARVE's gitleaks mapper hard-codes MEDIUM for every secret (intended HIGH)"
+      }
+    },
+    {
+      "id": "SEC-15",
+      "engine": "gitleaks",
+      "finding_type": "secret",
+      "severity": "HIGH",
+      "file_path": "apps/admin-ui/.npmrc",
+      "file_type": "npmrc",
+      "line_start": 6,
+      "rule_id": "npm-access-token",
+      "history_only": false,
+      "tests": "INGESTION GAP: a dotfile with no extension. os.path.splitext('.npmrc') returns '' so nothing can match",
+      "notes": "Shape npm_ + 36 alphanumerics, on the conventional //registry.npmjs.org/:_authToken= line. Both gitleaks versions detect it at line 6 when shown the file, so an ARVE miss is an ingestion gap. This is the same splitext behaviour that makes the '.env' allow-list entry unreachable: for any dotfile the whole name is the stem and the extension is empty. A publish token is a supply-chain credential, which makes this class of file worth ingesting.",
+      "testbed": {
+        "expected_finding_count": 1,
+        "what_was_planted": "npm registry auth token in the admin console's .npmrc.",
+        "additional_locations": []
+      },
+      "scanner_verification": {
+        "gitleaks_8_24_2": true,
+        "gitleaks_8_30_1": true,
+        "mode": "dir",
+        "verified": "2026-09-22",
+        "note": "detected by both versions at line 6 column 35 when the file is scanned directly; invisible to ARVE"
+      },
+      "arve_pipeline": {
+        "ingestion": "SKIPPED",
+        "skip_reason": "unsupported_file_type",
+        "reaches_scanner": false,
+        "expected_arve_detected": false,
+        "expected_arve_count": 0,
+        "known_arve_divergence": "INGESTION GAP: splitext('.npmrc') -> '' which is in no allow-list, so the file is SKIPPED unsupported_file_type. Same root cause as the unreachable '.env' entry."
+      }
+    },
+    {
+      "id": "SEC-23",
+      "engine": "gitleaks",
+      "finding_type": "secret",
+      "severity": "HIGH",
+      "file_path": "apps/admin-ui/src/analyticsClient.js",
+      "file_type": "javascript",
+      "line_start": 11,
+      "rule_id": "generic-api-key",
+      "history_only": false,
+      "tests": "ONE credential, THREE file types - extends SEC-05 (which uses two files of the same type) across javascript, yaml and python",
+      "notes": "The identical 40-character value appears in apps/admin-ui/src/analyticsClient.js:11 (javascript), ops/k8s/admin-ui-config.yaml:12 (yaml) and tools/analytics_export.py:17 (python). All three are INGESTED, and gitleaks reports THREE findings with three different fingerprints, because the dir-mode fingerprint is file:rule:line. ARVE will therefore report 3 findings for 1 leaked credential, across three different file types - the same design question SEC-05 poses, but now it cannot be dismissed as 'the same file type twice'. Rotating the key closes three findings at once; fixing one file leaves two open. Either behaviour is defensible, but it must be deliberate and consistent.",
+      "testbed": {
+        "expected_finding_count": 3,
+        "what_was_planted": "Product analytics collector write key, byte-identical in a JS module, a Kubernetes ConfigMap and a Python export script.",
+        "additional_locations": [
+          {
+            "rule": "generic-api-key",
+            "line": 12,
+            "note": "same value in ops/k8s/admin-ui-config.yaml",
+            "file_path": "ops/k8s/admin-ui-config.yaml",
+            "file_type": "kubernetes-yaml",
+            "ingestion": "INGESTED",
+            "skip_reason": null
+          },
+          {
+            "rule": "generic-api-key",
+            "line": 17,
+            "note": "same value in tools/analytics_export.py",
+            "file_path": "tools/analytics_export.py",
+            "file_type": "python",
+            "ingestion": "INGESTED",
+            "skip_reason": null
+          }
+        ]
+      },
+      "scanner_verification": {
+        "gitleaks_8_24_2": true,
+        "gitleaks_8_30_1": true,
+        "mode": "dir",
+        "verified": "2026-09-22",
+        "note": "all three locations detected by both versions: analyticsClient.js:11, admin-ui-config.yaml:12, analytics_export.py:17"
+      },
+      "arve_pipeline": {
+        "ingestion": "INGESTED",
+        "skip_reason": null,
+        "reaches_scanner": true,
+        "expected_arve_detected": true,
+        "expected_arve_count": 3,
+        "known_arve_divergence": "severity reported as MEDIUM: ARVE's gitleaks mapper hard-codes MEDIUM for every secret (intended HIGH). Three findings for one credential: the dir-mode fingerprint file:rule:line differs per file. Compare SEC-22, where two DIFFERENT credentials share one fingerprint - the identity field is wrong in both directions."
+      }
+    },
+    {
+      "id": "SEC-24",
+      "engine": "gitleaks",
+      "finding_type": "secret",
+      "severity": "HIGH",
+      "file_path": "apps/admin-ui/public/vendor.min.js",
+      "file_type": "javascript-minified",
+      "line_start": 1,
+      "rule_id": "algolia-api-key",
+      "history_only": false,
+      "tests": "a realistic bundle leak: one 154 KB line, secret at column ~154444 - stresses long-line handling",
+      "notes": "An Algolia ADMIN key (not a search key) baked into a minified vendor bundle, which is how this leak actually happens: the build inlines a server-side key into client JS. The file is a single 154,478-byte line. Both versions find it on line 1. The reported StartColumn is WRONG and differs by version (8.24.2: 29427, 8.30.1: 755, true column 154444) - almost certainly chunked reading. That is NOT part of this plant's expected values and must not be scored: ARVE's NormalizedFinding has no column field. See scanner_limitations LIM-03. Note the path is NOT covered by gitleaks' global allowlist, which exempts only named vendor bundles (jquery, angular, bootstrap, plotly, swagger-ui) - naming this file jquery.min.js would have silently suppressed it.",
+      "testbed": {
+        "expected_finding_count": 1,
+        "what_was_planted": "Algolia admin API key inside a generated minified vendor bundle.",
+        "additional_locations": []
+      },
+      "scanner_verification": {
+        "gitleaks_8_24_2": true,
+        "gitleaks_8_30_1": true,
+        "mode": "dir",
+        "verified": "2026-09-22",
+        "note": "both versions detect it on line 1; columns disagree and are both wrong (see LIM-03), which is why only the line is recorded as an expected value",
+        "observed_columns": {
+          "true": 154444,
+          "gitleaks_8_24_2": 29427,
+          "gitleaks_8_30_1": 755
+        }
+      },
+      "arve_pipeline": {
+        "ingestion": "INGESTED",
+        "skip_reason": null,
+        "reaches_scanner": true,
+        "expected_arve_detected": true,
+        "expected_arve_count": 1,
+        "known_arve_divergence": "severity reported as MEDIUM: ARVE's gitleaks mapper hard-codes MEDIUM for every secret (intended HIGH). The wrong StartColumn does not reach ARVE at all: NormalizedFinding carries no column, so the value is dropped in mapping rather than mis-stored."
+      }
+    },
+    {
+      "id": "SEC-16",
+      "engine": "gitleaks",
+      "finding_type": "secret",
+      "severity": "HIGH",
+      "file_path": "services/reconciler-go/main.go",
+      "file_type": "go",
+      "line_start": 23,
+      "rule_id": "slack-bot-token",
+      "history_only": false,
+      "tests": "Go source - the third compiled-language file type in the testbed",
+      "notes": "Shape xoxb- + 12 digits + '-' + 13 digits + '-' + 24 alphanumerics. The go.mod beside it carries DEP-11, so this directory exercises the secret and dependency paths at once on the same service.",
+      "testbed": {
+        "expected_finding_count": 1,
+        "what_was_planted": "Slack bot token for the #payments-ops reconciliation summary.",
+        "additional_locations": []
+      },
+      "scanner_verification": {
+        "gitleaks_8_24_2": true,
+        "gitleaks_8_30_1": true,
+        "mode": "dir",
+        "verified": "2026-09-22",
+        "note": "detected by both versions at line 23 column 25"
+      },
+      "arve_pipeline": {
+        "ingestion": "INGESTED",
+        "skip_reason": null,
+        "reaches_scanner": true,
+        "expected_arve_detected": true,
+        "expected_arve_count": 1,
+        "known_arve_divergence": "severity reported as MEDIUM: ARVE's gitleaks mapper hard-codes MEDIUM for every secret (intended HIGH)"
+      }
+    },
+    {
+      "id": "SEC-17",
+      "engine": "gitleaks",
+      "finding_type": "secret",
+      "severity": "HIGH",
+      "file_path": "ops/Dockerfile",
+      "file_type": "dockerfile",
+      "line_start": 6,
+      "rule_id": "huggingface-access-token",
+      "history_only": false,
+      "tests": "an ENV line in a Dockerfile - ingested by FILENAME (no extension), not by extension",
+      "notes": "Shape hf_ + 34 letters (no digits - the rule's charset is [a-z]{34} case-insensitive). This is the one plant whose ingestion depends on the FILENAME allow-list rather than the extension list: 'dockerfile' is an allowed filename, so it is INGESTED despite having no extension - the same property that makes .npmrc (SEC-15) invisible. A token baked into an ENV line also survives into every layer of the built image, which is why this shape of leak matters.",
+      "testbed": {
+        "expected_finding_count": 1,
+        "what_was_planted": "Hugging Face access token for pulling the private fraud-scoring model at build time.",
+        "additional_locations": []
+      },
+      "scanner_verification": {
+        "gitleaks_8_24_2": true,
+        "gitleaks_8_30_1": true,
+        "mode": "dir",
+        "verified": "2026-09-22",
+        "note": "detected by both versions at line 6 column 15"
+      },
+      "arve_pipeline": {
+        "ingestion": "INGESTED",
+        "skip_reason": null,
+        "reaches_scanner": true,
+        "expected_arve_detected": true,
+        "expected_arve_count": 1,
+        "known_arve_divergence": "severity reported as MEDIUM: ARVE's gitleaks mapper hard-codes MEDIUM for every secret (intended HIGH). Ingested via the filename allow-list ('dockerfile'), not the extension list."
+      }
+    },
+    {
+      "id": "SEC-18",
+      "engine": "gitleaks",
+      "finding_type": "secret",
+      "severity": "HIGH",
+      "file_path": "ops/k8s/secrets.yaml",
+      "file_type": "kubernetes-yaml",
+      "line_start": 12,
+      "rule_id": "private-key",
+      "history_only": false,
+      "tests": "the SAME rule class as SEC-03, but in a file ARVE actually ingests - the contrast isolates the .pem ingestion gap",
+      "notes": "A genuine throwaway EC P-256 private key (openssl ecparam -name prime256v1 -genkey), indented inside a Kubernetes Secret stringData block. This is the control for SEC-03: same rule (private-key), same class of secret, different file type. SEC-03 (.pem) is SKIPPED and SEC-18 (.yaml) is INGESTED, so if ARVE reports SEC-18 but not SEC-03, the difference is provably ingestion and not the private-key rule. The adjacent fake CERTIFICATE block correctly produces nothing - only the PRIVATE KEY block matches.",
+      "testbed": {
+        "expected_finding_count": 1,
+        "what_was_planted": "EC private key for the bank mTLS client certificate, inline in a committed Kubernetes Secret.",
+        "additional_locations": []
+      },
+      "scanner_verification": {
+        "gitleaks_8_24_2": true,
+        "gitleaks_8_30_1": true,
+        "mode": "dir",
+        "verified": "2026-09-22",
+        "note": "detected by both versions at line 12 (the BEGIN EC PRIVATE KEY line), column 6"
+      },
+      "arve_pipeline": {
+        "ingestion": "INGESTED",
+        "skip_reason": null,
+        "reaches_scanner": true,
+        "expected_arve_detected": true,
+        "expected_arve_count": 1,
+        "known_arve_divergence": "severity reported as MEDIUM: ARVE's gitleaks mapper hard-codes MEDIUM for every secret (intended HIGH). Compare SEC-03: identical rule, dropped at ingestion because the extension is .pem."
+      }
+    },
+    {
+      "id": "SEC-19",
+      "engine": "gitleaks",
+      "finding_type": "secret",
+      "severity": "HIGH",
+      "file_path": "ops/terraform/main.tf",
+      "file_type": "terraform",
+      "line_start": 17,
+      "rule_id": "hashicorp-tf-api-token",
+      "history_only": false,
+      "tests": "INGESTION GAP: infrastructure-as-code. .tf is in no allow-list",
+      "notes": "Terraform Cloud team token, shape 14 [a-z0-9] + '.atlasv1.' + 67 [A-Za-z0-9-_]. Both gitleaks versions detect it at line 17 when shown the file. IaC is where cloud credentials concentrate, and .tf / .tfvars are both missing from the extension allow-list, so an entire category of high-value secret is invisible to ARVE today.",
+      "testbed": {
+        "expected_finding_count": 1,
+        "what_was_planted": "Terraform Cloud API token inline in a provider block.",
+        "additional_locations": []
+      },
+      "scanner_verification": {
+        "gitleaks_8_24_2": true,
+        "gitleaks_8_30_1": true,
+        "mode": "dir",
+        "verified": "2026-09-22",
+        "note": "detected by both versions at line 17 column 16 when the file is scanned directly; invisible to ARVE"
+      },
+      "arve_pipeline": {
+        "ingestion": "SKIPPED",
+        "skip_reason": "unsupported_file_type",
+        "reaches_scanner": false,
+        "expected_arve_detected": false,
+        "expected_arve_count": 0,
+        "known_arve_divergence": "INGESTION GAP: '.tf' is in neither the filename nor the extension allow-list, so the file is SKIPPED unsupported_file_type."
+      }
+    },
+    {
+      "id": "SEC-20",
+      "engine": "gitleaks",
+      "finding_type": "secret",
+      "severity": "HIGH",
+      "file_path": "ops/scripts/backup.sh",
+      "file_type": "shell",
+      "line_start": 14,
+      "rule_id": "shopify-access-token",
+      "history_only": false,
+      "tests": "a shell script - operational glue, which is where long-lived tokens tend to survive",
+      "notes": "Shape shpat_ + 32 hex. Pairs with SEC-26, which is the same file type in a directory ARVE's filter drops, so the two together separate 'shell scripts are scanned' from 'this shell script was never ingested'.",
+      "testbed": {
+        "expected_finding_count": 1,
+        "what_was_planted": "Shopify private app admin API token in the nightly merchant-catalogue backup script.",
+        "additional_locations": []
+      },
+      "scanner_verification": {
+        "gitleaks_8_24_2": true,
+        "gitleaks_8_30_1": true,
+        "mode": "dir",
+        "verified": "2026-09-22",
+        "note": "detected by both versions at line 14 column 24"
+      },
+      "arve_pipeline": {
+        "ingestion": "INGESTED",
+        "skip_reason": null,
+        "reaches_scanner": true,
+        "expected_arve_detected": true,
+        "expected_arve_count": 1,
+        "known_arve_divergence": "severity reported as MEDIUM: ARVE's gitleaks mapper hard-codes MEDIUM for every secret (intended HIGH)"
+      }
+    },
+    {
+      "id": "SEC-26",
+      "engine": "gitleaks",
+      "finding_type": "secret",
+      "severity": "HIGH",
+      "file_path": "ops/build/publish.sh",
+      "file_type": "shell",
+      "line_start": 12,
+      "rule_id": "pypi-upload-token",
+      "history_only": false,
+      "tests": "INGESTION GAP: the DIRECTORY filter. Identical file type to SEC-20, dropped only because a path segment is 'build'",
+      "notes": "PyPI upload token, shape pypi-AgEIcHlwaS5vcmc + 120 [A-Za-z0-9-_]. This is the cleanest possible isolation of the directory filter: SEC-20 is a .sh file that IS ingested and SEC-26 is a .sh file that is NOT, and the only difference is the path segment 'build'. The directory list (build, dist, target, vendor, coverage, ...) exists to skip generated output, but 'build' also names hand-written release tooling - and this file is tracked in Git, not generated. Note .gitignore deliberately does NOT ignore ops/build/, so the file is genuinely committed.",
+      "testbed": {
+        "expected_finding_count": 1,
+        "what_was_planted": "PyPI upload token in the library release script under ops/build/.",
+        "additional_locations": []
+      },
+      "scanner_verification": {
+        "gitleaks_8_24_2": true,
+        "gitleaks_8_30_1": true,
+        "mode": "dir",
+        "verified": "2026-09-22",
+        "note": "detected by both versions at line 12 column 14 when the file is scanned directly; invisible to ARVE"
+      },
+      "arve_pipeline": {
+        "ingestion": "SKIPPED",
+        "skip_reason": "ignored_directory",
+        "reaches_scanner": false,
+        "expected_arve_detected": false,
+        "expected_arve_count": 0,
+        "known_arve_divergence": "INGESTION GAP: the path segment 'build' is in the ignored-directory list, so the file is SKIPPED ignored_directory before any size or extension check. Contrast SEC-20, an identical .sh file that is ingested."
+      }
+    },
+    {
+      "id": "SEC-21",
+      "engine": "gitleaks",
+      "finding_type": "secret",
+      "severity": "HIGH",
+      "file_path": "db/seed.sql",
+      "file_type": "sql",
+      "line_start": 13,
+      "rule_id": "jwt",
+      "history_only": false,
+      "tests": "the jwt rule class in a SQL file - a structured token rather than a vendor prefix or an entropy match",
+      "notes": "A real-shaped HS256 JWT (header.payload.signature, base64url) seeded as a service client's bearer token. Distinct rule CLASS: the jwt rule matches document structure, not a vendor prefix (SEC-10, SEC-14, ...) and not entropy near a keyword (SEC-07, SEC-22, SEC-23). The header and payload decode to real JSON; the signature is 32 random bytes, so the token is correctly shaped but verifies against nothing.",
+      "testbed": {
+        "expected_finding_count": 1,
+        "what_was_planted": "Service-client JWT bearer token in the local database seed script.",
+        "additional_locations": []
+      },
+      "scanner_verification": {
+        "gitleaks_8_24_2": true,
+        "gitleaks_8_30_1": true,
+        "mode": "dir",
+        "verified": "2026-09-22",
+        "note": "detected by both versions at line 13 column 40"
+      },
+      "arve_pipeline": {
+        "ingestion": "INGESTED",
+        "skip_reason": null,
+        "reaches_scanner": true,
+        "expected_arve_detected": true,
+        "expected_arve_count": 1,
+        "known_arve_divergence": "severity reported as MEDIUM: ARVE's gitleaks mapper hard-codes MEDIUM for every secret (intended HIGH)"
+      }
+    },
+    {
+      "id": "SEC-22",
+      "engine": "gitleaks",
+      "finding_type": "secret",
+      "severity": "HIGH",
+      "file_path": "tools/sync_keys.py",
+      "file_type": "python",
+      "line_start": 16,
+      "rule_id": "generic-api-key",
+      "history_only": false,
+      "tests": "NORMALIZER STRESS: two DIFFERENT secrets, same rule, same line - identical gitleaks fingerprint, so ARVE may collapse them into one finding",
+      "notes": "Two distinct 40-character credentials in one dict literal on line 16. Gitleaks reports TWO findings (columns 15 and 78) in both versions, but the dir-mode fingerprint is file:rule:startLine, so BOTH carry the identical fingerprint 'tools/sync_keys.py:generic-api-key:16'. ARVE sets secret_hash to that fingerprint and passes --redact, so there is no secret value to disambiguate with, and StartColumn - the only distinguishing field - is not carried on NormalizedFinding (and is unreliable anyway, see LIM-03). EXPECTED ARVE RESULT: 1 finding, not 2. The second credential is silently lost. This is a deliberate normalizer probe, not a plant that should be 'fixed' by moving the secrets onto separate lines. See ARVE_ISSUES.md issue 3.",
+      "testbed": {
+        "expected_finding_count": 2,
+        "what_was_planted": "A rotation pair - two different analytics keys - in one dict literal on a single line.",
+        "additional_locations": [
+          {
+            "rule": "generic-api-key",
+            "line": 16,
+            "note": "second distinct secret on the SAME line, column 78, identical fingerprint"
+          }
+        ],
+        "gitleaks_fingerprint_both": "tools/sync_keys.py:generic-api-key:16"
+      },
+      "scanner_verification": {
+        "gitleaks_8_24_2": true,
+        "gitleaks_8_30_1": true,
+        "mode": "dir",
+        "verified": "2026-09-22",
+        "note": "both versions report two findings on line 16 (columns 15 and 78) with the SAME fingerprint",
+        "observed_findings": 2,
+        "observed_distinct_fingerprints": 1
+      },
+      "arve_pipeline": {
+        "ingestion": "INGESTED",
+        "skip_reason": null,
+        "reaches_scanner": true,
+        "expected_arve_detected": true,
+        "expected_arve_count": 1,
+        "known_arve_divergence": "severity reported as MEDIUM: ARVE's gitleaks mapper hard-codes MEDIUM for every secret (intended HIGH). COLLAPSE EXPECTED: 2 leaked credentials -> 1 ARVE finding, because secret_hash (= the gitleaks fingerprint file:rule:line) is identical for both and --redact removes the values.",
+        "expected_arve_scanner_findings": 2,
+        "collapse_note": "gitleaks reports 2 over the ingested subset; ARVE is expected to store 1 after fingerprint collapse"
+      }
+    },
+    {
+      "id": "SEC-25",
+      "engine": "gitleaks",
+      "finding_type": "secret",
+      "severity": "HIGH",
+      "file_path": "db/fixtures/merchant_export.json",
+      "file_type": "json-fixture",
+      "line_start": 38901,
+      "rule_id": "square-access-token",
+      "history_only": false,
+      "tests": "INGESTION GAP: the file-size limit. 1,262,651 bytes against a 1,048,576-byte cap",
+      "notes": "A merchant's Square access token that came along with a catalogue export - the realistic way a credential ends up inside a large data fixture. The file is 1,262,651 bytes, 214,075 over ARVE's 1 MiB limit, so it is SKIPPED file_too_large. Both gitleaks versions find the token at line 38901 when shown the file. Large JSON exports, database dumps and fixtures are exactly where bulk credential leaks hide, and the size check drops them before any extension check. The other 5,399 merchant records carry no credential-shaped values and produce nothing.",
+      "testbed": {
+        "expected_finding_count": 1,
+        "what_was_planted": "Square access token inside a 1.2 MB merchant catalogue export fixture.",
+        "additional_locations": [],
+        "file_size_bytes": 1262651,
+        "arve_size_limit_bytes": 1048576
+      },
+      "scanner_verification": {
+        "gitleaks_8_24_2": true,
+        "gitleaks_8_30_1": true,
+        "mode": "dir",
+        "verified": "2026-09-22",
+        "note": "detected by both versions at line 38901 column 32 when the file is scanned directly; invisible to ARVE"
+      },
+      "arve_pipeline": {
+        "ingestion": "SKIPPED",
+        "skip_reason": "file_too_large",
+        "reaches_scanner": false,
+        "expected_arve_detected": false,
+        "expected_arve_count": 0,
+        "known_arve_divergence": "INGESTION GAP: 1,262,651 bytes > 1,048,576-byte limit, so SKIPPED file_too_large. The size check runs before the extension check, so the .json extension never gets a chance to allow it."
+      }
+    },
+    {
+      "id": "SEC-27",
+      "engine": "gitleaks",
+      "finding_type": "secret",
+      "severity": "HIGH",
+      "file_path": "services/notifier-rust/notifier.toml",
+      "file_type": "toml",
+      "line_start": 14,
+      "rule_id": "new-relic-user-api-key",
+      "history_only": false,
+      "tests": "LIFECYCLE: a secret ROTATED IN PLACE - old value history-only, new value at HEAD, both on the same line",
+      "notes": "The value at HEAD is the post-rotation key. An earlier commit carries a DIFFERENT key at the SAME line of the SAME file (the rotation is made deliberately in its own commit in Phase 5; the old value is derived from a fixed seed by seed_history.py and never appears at HEAD). EXPECTED DIVERGENCE, not a bug in the plant: reference `gitleaks git` reports TWO findings (old value and new value, both at line 14, in different commits), while ARVE reports ONE finding that stays continuously OPEN and never observes the rotation at all - it scans only HEAD, and the dir-mode fingerprint file:rule:line is identical before and after, so a replaced credential is indistinguishable from an untouched one. This is the mirror image of SEC-06 (same value, different line -> looks like a NEW finding) and the complement of SEC-22 (different values, same line -> collapse). See ARVE_ISSUES.md issue 3.",
+      "testbed": {
+        "expected_finding_count": 1,
+        "what_was_planted": "New Relic ingest key in the notifier's TOML config, rotated in place in a later commit.",
+        "additional_locations": [],
+        "history_extra_findings": 1,
+        "history_extra_note": "gitleaks git also reports the PRE-rotation value at the same file and line in the earlier commit; hashes are stamped in Phase 5"
+      },
+      "scanner_verification": {
+        "gitleaks_8_24_2": true,
+        "gitleaks_8_30_1": true,
+        "mode": "dir",
+        "verified": "2026-09-22",
+        "note": "HEAD value detected by both versions at line 14 column 2; the pre-rotation value is verified in Phase 5 once the rotation commit exists"
+      },
+      "arve_pipeline": {
+        "ingestion": "INGESTED",
+        "skip_reason": null,
+        "reaches_scanner": true,
+        "expected_arve_detected": true,
+        "expected_arve_count": 1,
+        "known_arve_divergence": "severity reported as MEDIUM: ARVE's gitleaks mapper hard-codes MEDIUM for every secret (intended HIGH). ROTATION INVISIBLE: ARVE sees only HEAD and fingerprints on file:rule:line, so the old and new keys share one identity. Expected ARVE behaviour is a single finding that never transitions - not RESOLVED for the old key, not a new finding for the new one."
+      }
     }
   ],
   "expected_osv_inventory": [
@@ -682,7 +1317,8 @@
       "has_cvss": true,
       "severity": "CRITICAL",
       "severity_source": "github_severity_string",
-      "summary": "Deserialization of Untrusted Data in PyYAML"
+      "summary": "Deserialization of Untrusted Data in PyYAML",
+      "file_path": "backend/requirements.txt"
     },
     {
       "ecosystem": "PyPI",
@@ -695,7 +1331,8 @@
       "has_cvss": true,
       "severity": "CRITICAL",
       "severity_source": "github_severity_string",
-      "summary": "Improper Input Validation in PyYAML"
+      "summary": "Improper Input Validation in PyYAML",
+      "file_path": "backend/requirements.txt"
     },
     {
       "ecosystem": "PyPI",
@@ -708,7 +1345,8 @@
       "has_cvss": true,
       "severity": "CRITICAL",
       "severity_source": "github_severity_string",
-      "summary": "Improper Input Validation in PyYAML"
+      "summary": "Improper Input Validation in PyYAML",
+      "file_path": "backend/requirements.txt"
     },
     {
       "ecosystem": "PyPI",
@@ -721,7 +1359,8 @@
       "has_cvss": false,
       "severity": "MEDIUM",
       "severity_source": "no_severity_data",
-      "summary": ""
+      "summary": "",
+      "file_path": "backend/requirements.txt"
     },
     {
       "ecosystem": "PyPI",
@@ -734,7 +1373,8 @@
       "has_cvss": false,
       "severity": "MEDIUM",
       "severity_source": "no_severity_data",
-      "summary": ""
+      "summary": "",
+      "file_path": "backend/requirements.txt"
     },
     {
       "ecosystem": "PyPI",
@@ -747,7 +1387,8 @@
       "has_cvss": false,
       "severity": "MEDIUM",
       "severity_source": "no_severity_data",
-      "summary": ""
+      "summary": "",
+      "file_path": "backend/requirements.txt"
     },
     {
       "ecosystem": "PyPI",
@@ -760,7 +1401,8 @@
       "has_cvss": true,
       "severity": "MEDIUM",
       "severity_source": "github_severity_string",
-      "summary": "Certifi removing TrustCor root certificate"
+      "summary": "Certifi removing TrustCor root certificate",
+      "file_path": "backend/requirements.txt"
     },
     {
       "ecosystem": "PyPI",
@@ -773,7 +1415,8 @@
       "has_cvss": true,
       "severity": "HIGH",
       "severity_source": "github_severity_string",
-      "summary": "Removal of e-Tugra root certificate"
+      "summary": "Removal of e-Tugra root certificate",
+      "file_path": "backend/requirements.txt"
     },
     {
       "ecosystem": "PyPI",
@@ -786,7 +1429,8 @@
       "has_cvss": false,
       "severity": "MEDIUM",
       "severity_source": "no_severity_data",
-      "summary": ""
+      "summary": "",
+      "file_path": "backend/requirements.txt"
     },
     {
       "ecosystem": "PyPI",
@@ -799,7 +1443,8 @@
       "has_cvss": false,
       "severity": "MEDIUM",
       "severity_source": "no_severity_data",
-      "summary": ""
+      "summary": "",
+      "file_path": "backend/requirements.txt"
     },
     {
       "ecosystem": "PyPI",
@@ -813,7 +1458,8 @@
       "severity": "MEDIUM",
       "severity_source": "cvss_only",
       "summary": "Certifi removes GLOBALTRUST root certificate",
-      "testbed_note": "SCANNER OVER-MATCH, NOT A PLANTED FINDING. This advisory's ECOSYSTEM range is introduced 2021.5.30 / fixed 2024.7.4, so certifi 2018.4.16 is BELOW the introduced bound and is not actually affected. osv-scanner reports it anyway, most likely because the record also carries a GIT range with introduced:0. Confirmed present in the committed osv-baseline.json. ARVE reporting it is CORRECT behaviour - it faithfully reflects its scanner. Do not 'fix' ARVE to suppress this."
+      "testbed_note": "SCANNER OVER-MATCH, NOT A PLANTED FINDING. This advisory's ECOSYSTEM range is introduced 2021.5.30 / fixed 2024.7.4, so certifi 2018.4.16 is BELOW the introduced bound and is not actually affected. osv-scanner reports it anyway, most likely because the record also carries a GIT range with introduced:0. Confirmed present in the committed osv-baseline.json. ARVE reporting it is CORRECT behaviour - it faithfully reflects its scanner. Do not 'fix' ARVE to suppress this.",
+      "file_path": "backend/requirements.txt"
     },
     {
       "ecosystem": "npm",
@@ -826,7 +1472,8 @@
       "has_cvss": true,
       "severity": "MEDIUM",
       "severity_source": "github_severity_string",
-      "summary": "Regular Expression Denial of Service (ReDoS) in lodash"
+      "summary": "Regular Expression Denial of Service (ReDoS) in lodash",
+      "file_path": "web/package-lock.json"
     },
     {
       "ecosystem": "npm",
@@ -839,7 +1486,8 @@
       "has_cvss": true,
       "severity": "HIGH",
       "severity_source": "github_severity_string",
-      "summary": "Command Injection in lodash"
+      "summary": "Command Injection in lodash",
+      "file_path": "web/package-lock.json"
     },
     {
       "ecosystem": "npm",
@@ -852,7 +1500,8 @@
       "has_cvss": true,
       "severity": "MEDIUM",
       "severity_source": "github_severity_string",
-      "summary": "lodash vulnerable to Prototype Pollution via array path bypass in `_.unset` and `_.omit`"
+      "summary": "lodash vulnerable to Prototype Pollution via array path bypass in `_.unset` and `_.omit`",
+      "file_path": "web/package-lock.json"
     },
     {
       "ecosystem": "npm",
@@ -865,7 +1514,8 @@
       "has_cvss": true,
       "severity": "CRITICAL",
       "severity_source": "github_severity_string",
-      "summary": "Prototype Pollution in lodash"
+      "summary": "Prototype Pollution in lodash",
+      "file_path": "web/package-lock.json"
     },
     {
       "ecosystem": "npm",
@@ -878,7 +1528,8 @@
       "has_cvss": true,
       "severity": "HIGH",
       "severity_source": "github_severity_string",
-      "summary": "Prototype Pollution in lodash"
+      "summary": "Prototype Pollution in lodash",
+      "file_path": "web/package-lock.json"
     },
     {
       "ecosystem": "npm",
@@ -891,7 +1542,8 @@
       "has_cvss": true,
       "severity": "HIGH",
       "severity_source": "github_severity_string",
-      "summary": "lodash vulnerable to Code Injection via `_.template` imports key names"
+      "summary": "lodash vulnerable to Code Injection via `_.template` imports key names",
+      "file_path": "web/package-lock.json"
     },
     {
       "ecosystem": "npm",
@@ -904,7 +1556,8 @@
       "has_cvss": true,
       "severity": "MEDIUM",
       "severity_source": "github_severity_string",
-      "summary": "Lodash has Prototype Pollution Vulnerability in `_.unset` and `_.omit` functions"
+      "summary": "Lodash has Prototype Pollution Vulnerability in `_.unset` and `_.omit` functions",
+      "file_path": "web/package-lock.json"
     },
     {
       "ecosystem": "npm",
@@ -917,7 +1570,8 @@
       "has_cvss": true,
       "severity": "MEDIUM",
       "severity_source": "github_severity_string",
-      "summary": "follow-redirects' Proxy-Authorization header kept across hosts"
+      "summary": "follow-redirects' Proxy-Authorization header kept across hosts",
+      "file_path": "web/package-lock.json"
     },
     {
       "ecosystem": "npm",
@@ -930,7 +1584,8 @@
       "has_cvss": true,
       "severity": "MEDIUM",
       "severity_source": "github_severity_string",
-      "summary": "Follow Redirects improperly handles URLs in the url.parse() function"
+      "summary": "Follow Redirects improperly handles URLs in the url.parse() function",
+      "file_path": "web/package-lock.json"
     },
     {
       "ecosystem": "npm",
@@ -943,7 +1598,8 @@
       "has_cvss": true,
       "severity": "MEDIUM",
       "severity_source": "github_severity_string",
-      "summary": "Exposure of Sensitive Information to an Unauthorized Actor in follow-redirects"
+      "summary": "Exposure of Sensitive Information to an Unauthorized Actor in follow-redirects",
+      "file_path": "web/package-lock.json"
     },
     {
       "ecosystem": "npm",
@@ -956,7 +1612,8 @@
       "has_cvss": true,
       "severity": "MEDIUM",
       "severity_source": "github_severity_string",
-      "summary": "follow-redirects leaks Custom Authentication Headers to Cross-Domain Redirect Targets"
+      "summary": "follow-redirects leaks Custom Authentication Headers to Cross-Domain Redirect Targets",
+      "file_path": "web/package-lock.json"
     },
     {
       "ecosystem": "npm",
@@ -969,7 +1626,8 @@
       "has_cvss": true,
       "severity": "MEDIUM",
       "severity_source": "github_severity_string",
-      "summary": "Prototype Pollution in minimist"
+      "summary": "Prototype Pollution in minimist",
+      "file_path": "web/package-lock.json"
     },
     {
       "ecosystem": "npm",
@@ -982,7 +1640,8 @@
       "has_cvss": true,
       "severity": "CRITICAL",
       "severity_source": "github_severity_string",
-      "summary": "Prototype Pollution in minimist"
+      "summary": "Prototype Pollution in minimist",
+      "file_path": "web/package-lock.json"
     },
     {
       "ecosystem": "npm",
@@ -995,7 +1654,8 @@
       "has_cvss": true,
       "severity": "MEDIUM",
       "severity_source": "github_severity_string",
-      "summary": "XSS in jQuery as used in Drupal, Backdrop CMS, and other products"
+      "summary": "XSS in jQuery as used in Drupal, Backdrop CMS, and other products",
+      "file_path": "web/package-lock.json"
     },
     {
       "ecosystem": "npm",
@@ -1008,7 +1668,8 @@
       "has_cvss": true,
       "severity": "MEDIUM",
       "severity_source": "github_severity_string",
-      "summary": "Potential XSS vulnerability in jQuery"
+      "summary": "Potential XSS vulnerability in jQuery",
+      "file_path": "web/package-lock.json"
     },
     {
       "ecosystem": "npm",
@@ -1021,7 +1682,8 @@
       "has_cvss": true,
       "severity": "MEDIUM",
       "severity_source": "github_severity_string",
-      "summary": "Potential XSS vulnerability in jQuery"
+      "summary": "Potential XSS vulnerability in jQuery",
+      "file_path": "web/package-lock.json"
     },
     {
       "ecosystem": "npm",
@@ -1034,7 +1696,8 @@
       "has_cvss": true,
       "severity": "HIGH",
       "severity_source": "github_severity_string",
-      "summary": "Serialize JavaScript is Vulnerable to RCE via RegExp.flags and Date.prototype.toISOString()"
+      "summary": "Serialize JavaScript is Vulnerable to RCE via RegExp.flags and Date.prototype.toISOString()",
+      "file_path": "web/package-lock.json"
     },
     {
       "ecosystem": "npm",
@@ -1047,7 +1710,8 @@
       "has_cvss": true,
       "severity": "HIGH",
       "severity_source": "github_severity_string",
-      "summary": "Insecure serialization leading to RCE in serialize-javascript"
+      "summary": "Insecure serialization leading to RCE in serialize-javascript",
+      "file_path": "web/package-lock.json"
     },
     {
       "ecosystem": "npm",
@@ -1060,7 +1724,8 @@
       "has_cvss": false,
       "severity": "MEDIUM",
       "severity_source": "github_severity_string",
-      "summary": "Out-of-bounds Read in stringstream"
+      "summary": "Out-of-bounds Read in stringstream",
+      "file_path": "web/package-lock.json"
     }
   ],
   "packages_expected_clean": [
@@ -1089,9 +1754,9 @@
     "http-proxy",
     "requires-port"
   ],
-  "expected_gitleaks_finding_count_at_head": 10,
+  "expected_gitleaks_finding_count_at_head": 31,
   "gitleaks_verified_with": "gitleaks 8.30.1, working-tree scan, 2026-08-31; re-verified 2026-09-22 with gitleaks 8.24.2 (ARVE pinned) and 8.30.1 (reference), dir and git modes",
-  "expected_gitleaks_finding_count_full_history": 12,
+  "expected_gitleaks_finding_count_full_history": 34,
   "git_history": {
     "commit_count": 13,
     "built_by": "seed_history.py --force",
@@ -1152,7 +1817,7 @@
     "known_false_positives": "negative controls a scanner fires on anyway; moved here with the reason",
     "scanner_limitations": "scanner behaviour discovered while planting that is NOT a plant and NOT scored. Secret values in test strings are replaced by {VALUE}; value_shape says how the tested value was generated, so the test can be re-run with a fresh synthetic value without planting it here."
   },
-  "expected_gitleaks_finding_count_via_arve_ingestion": 8,
+  "expected_gitleaks_finding_count_via_arve_ingestion": 24,
   "expected_osv_record_count_via_arve_ingestion": 30,
   "osv_verified_with": "osv-scanner 2.5.1, 2026-08-31; re-verified 2026-09-22 with osv-scanner 1.9.2 (ARVE pinned) and 2.5.1 (reference)",
   "advisory_drift": [
@@ -1347,26 +2012,47 @@
       "rule": "any (observed with algolia-api-key)",
       "summary": "StartColumn is wrong for a secret deep inside a very long single line, and differs between gitleaks versions.",
       "cause": "Most likely dir-mode chunked reading: the column is computed relative to the chunk, not the line. Line number is correct.",
-      "tested_string": "a ~154 KB single-line minified bundle ending in `var cfg={algoliaAppId:\"...\",algoliaAdminKey:\"{VALUE}\"};`",
-      "file_tested": "apps/admin-ui/public/vendor.min.js (scratch copy; planted later as SEC-24)",
+      "tested_string": "a 154,478-byte single-line minified bundle ending in `var cfg={algoliaAppId:\"...\",algoliaAdminKey:\"{VALUE}\"};`",
+      "file_tested": "apps/admin-ui/public/vendor.min.js (now planted as SEC-24)",
       "value_shape": "32 random [a-z0-9]",
       "results": {
-        "true_column": 154382,
+        "true_column": 154444,
         "gitleaks_8_24_2": {
           "line": 1,
-          "start_column": 29365
+          "start_column": 29427
         },
         "gitleaks_8_30_1": {
           "line": 1,
-          "start_column": 693
+          "start_column": 755
         }
       },
       "consequence": "Not a scoring input: ARVE's NormalizedFinding has no column fields. Documented as a scanner curiosity so nobody scores or debugs it. Columns were stable across repeated runs of each version.",
-      "verified": "2026-09-22"
+      "verified": "2026-09-22",
+      "demonstrated_by": "SEC-24"
     }
   ],
   "coverage_matrix": {
     "rows": [
+      {
+        "file_type": "css",
+        "engine": "gitleaks",
+        "ingestion": "INGESTED",
+        "skip_reason": null,
+        "plants": [
+          "SEC-12"
+        ],
+        "locations": 1
+      },
+      {
+        "file_type": "dockerfile",
+        "engine": "gitleaks",
+        "ingestion": "INGESTED",
+        "skip_reason": null,
+        "plants": [
+          "SEC-17"
+        ],
+        "locations": 1
+      },
       {
         "file_type": "dotenv-template",
         "engine": "gitleaks",
@@ -1388,12 +2074,103 @@
         "locations": 1
       },
       {
+        "file_type": "go",
+        "engine": "gitleaks",
+        "ingestion": "INGESTED",
+        "skip_reason": null,
+        "plants": [
+          "SEC-16"
+        ],
+        "locations": 1
+      },
+      {
+        "file_type": "html",
+        "engine": "gitleaks",
+        "ingestion": "INGESTED",
+        "skip_reason": null,
+        "plants": [
+          "SEC-13"
+        ],
+        "locations": 1
+      },
+      {
+        "file_type": "java",
+        "engine": "gitleaks",
+        "ingestion": "INGESTED",
+        "skip_reason": null,
+        "plants": [
+          "SEC-10"
+        ],
+        "locations": 1
+      },
+      {
+        "file_type": "java-properties",
+        "engine": "gitleaks",
+        "ingestion": "SKIPPED",
+        "skip_reason": "unsupported_file_type",
+        "plants": [
+          "SEC-11"
+        ],
+        "locations": 1
+      },
+      {
+        "file_type": "javascript",
+        "engine": "gitleaks",
+        "ingestion": "INGESTED",
+        "skip_reason": null,
+        "plants": [
+          "SEC-23"
+        ],
+        "locations": 1
+      },
+      {
+        "file_type": "javascript-minified",
+        "engine": "gitleaks",
+        "ingestion": "INGESTED",
+        "skip_reason": null,
+        "plants": [
+          "SEC-24"
+        ],
+        "locations": 1
+      },
+      {
+        "file_type": "json-fixture",
+        "engine": "gitleaks",
+        "ingestion": "SKIPPED",
+        "skip_reason": "file_too_large",
+        "plants": [
+          "SEC-25"
+        ],
+        "locations": 1
+      },
+      {
+        "file_type": "kubernetes-yaml",
+        "engine": "gitleaks",
+        "ingestion": "INGESTED",
+        "skip_reason": null,
+        "plants": [
+          "SEC-23",
+          "SEC-18"
+        ],
+        "locations": 2
+      },
+      {
         "file_type": "markdown",
         "engine": "gitleaks",
         "ingestion": "INGESTED",
         "skip_reason": null,
         "plants": [
           "SEC-09"
+        ],
+        "locations": 1
+      },
+      {
+        "file_type": "npmrc",
+        "engine": "gitleaks",
+        "ingestion": "SKIPPED",
+        "skip_reason": "unsupported_file_type",
+        "plants": [
+          "SEC-15"
         ],
         "locations": 1
       },
@@ -1426,9 +2203,71 @@
           "SEC-01",
           "SEC-05",
           "SEC-06",
-          "SEC-07"
+          "SEC-07",
+          "SEC-23",
+          "SEC-22"
         ],
-        "locations": 5
+        "locations": 7
+      },
+      {
+        "file_type": "shell",
+        "engine": "gitleaks",
+        "ingestion": "INGESTED",
+        "skip_reason": null,
+        "plants": [
+          "SEC-20"
+        ],
+        "locations": 1
+      },
+      {
+        "file_type": "shell",
+        "engine": "gitleaks",
+        "ingestion": "SKIPPED",
+        "skip_reason": "ignored_directory",
+        "plants": [
+          "SEC-26"
+        ],
+        "locations": 1
+      },
+      {
+        "file_type": "sql",
+        "engine": "gitleaks",
+        "ingestion": "INGESTED",
+        "skip_reason": null,
+        "plants": [
+          "SEC-21"
+        ],
+        "locations": 1
+      },
+      {
+        "file_type": "terraform",
+        "engine": "gitleaks",
+        "ingestion": "SKIPPED",
+        "skip_reason": "unsupported_file_type",
+        "plants": [
+          "SEC-19"
+        ],
+        "locations": 1
+      },
+      {
+        "file_type": "toml",
+        "engine": "gitleaks",
+        "ingestion": "INGESTED",
+        "skip_reason": null,
+        "plants": [
+          "SEC-27"
+        ],
+        "locations": 1
+      },
+      {
+        "file_type": "typescript",
+        "engine": "gitleaks",
+        "ingestion": "INGESTED",
+        "skip_reason": null,
+        "plants": [
+          "SEC-14"
+        ],
+        "locations": 1
       },
       {
         "file_type": "npm-package-lock",
@@ -1458,10 +2297,15 @@
       }
     ],
     "totals": {
-      "plants": 17,
-      "plants_reaching_arve_scanner": 14,
-      "plants_skipped_at_ingestion": 2,
+      "plants": 35,
+      "plants_reaching_arve_scanner": 27,
+      "plants_skipped_at_ingestion": 7,
       "plants_history_only": 1
     }
-  }
+  },
+  "expected_osv_records_by_file": {
+    "backend/requirements.txt": 11,
+    "web/package-lock.json": 19
+  },
+  "expected_arve_finding_count_after_normalization": 23
 }
