@@ -1,0 +1,18 @@
+# Notifier service configuration.
+# Sends settlement alerts to the on-call rotation and ships its own telemetry.
+
+[service]
+name = "notifier"
+bind = "0.0.0.0:8092"
+queue = "settlement-alerts"
+
+[telemetry]
+endpoint = "https://metric-api.eu.newrelic.com/metric/v1"
+flush_interval_seconds = 30
+# Ingest key for the notifier's own metrics.
+# TESTBED SEC-27 - intentional, see EXPECTED_FINDINGS.md
+newrelic_api_key = "NRAK-H9XVG7SPVF2OGACWZIPJV1TVC22"
+
+[retry]
+max_attempts = 5
+backoff_seconds = 2
