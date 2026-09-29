@@ -1,0 +1,4 @@
+plugins { id 'java' }
+repositories { mavenCentral() }
+dependencies { implementation 'org.yaml:snakeyaml:1.33' }
+dependencyLocking { lockAllConfigurations() }
