@@ -1,0 +1,2 @@
+{ "name": "partner-webhooks", "version": "0.1.0", "private": true,
+  "dependencies": { "node-fetch": "2.6.0", "mkdirp": "0.5.1", "minimist": "1.2.5" } }
