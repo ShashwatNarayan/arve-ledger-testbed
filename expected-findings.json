@@ -5,12 +5,12 @@
   "advisory_data_verified": "2026-08-31",
   "verification_method": "osv.dev /v1/query, with every returned advisory re-checked against its own affected ranges",
   "planted_finding_count": {
-    "total": 35,
+    "total": 47,
     "secrets": 27,
-    "dependencies": 8,
-    "recorded_so_far": 35
+    "dependencies": 20,
+    "recorded_so_far": 47
   },
-  "expected_osv_record_count": 30,
+  "expected_osv_record_count": 49,
   "line_numbers_verified_at_final_commit": true,
   "all_credentials_synthetic": true,
   "findings": [
@@ -1303,6 +1303,568 @@
         "expected_arve_count": 1,
         "known_arve_divergence": "severity reported as MEDIUM: ARVE's gitleaks mapper hard-codes MEDIUM for every secret (intended HIGH). ROTATION INVISIBLE: ARVE sees only HEAD and fingerprints on file:rule:line, so the old and new keys share one identity. Expected ARVE behaviour is a single finding that never transitions - not RESOLVED for the old key, not a new finding for the new one."
       }
+    },
+    {
+      "id": "DEP-09",
+      "engine": "osv",
+      "finding_type": "dependency",
+      "severity": "CRITICAL",
+      "file_path": "services/settlement-java/pom.xml",
+      "file_type": "maven-pom",
+      "line_start": 19,
+      "package_name": "org.apache.commons:commons-text",
+      "package_version": "1.9",
+      "ecosystem": "Maven",
+      "cve": "CVE-2022-42889",
+      "ghsa": "GHSA-599f-7c49-w659",
+      "history_only": false,
+      "tests": "the JVM canary: a Maven manifest, which OSV reads DIRECTLY rather than from a lockfile",
+      "notes": "Text4Shell. pom.xml is the one dependency source OSV reads as a manifest rather than a lockfile, so this plant proves the Maven path independently of DEP-10's gradle.lockfile. IMPORTANT: both osv-scanner versions resolve Maven dependencies TRANSITIVELY over the network (deps.dev). commons-text 1.9 pulls commons-lang3 3.11, which carries its own advisory, so commons-lang3 is pinned to 3.20.0 (advisory-free) in dependencyManagement purely to keep the noise floor at zero - without that pin this file reports 2 records, not 1. log4j-core 2.14.1 was the original candidate and was rejected: it carries 7 advisories, two published in 2026 and still growing.",
+      "testbed": {
+        "direct_dependency": true,
+        "expected_finding_count": 1,
+        "total_records_for_package_in_this_file": 1,
+        "total_records_for_package": 1,
+        "additional_advisories": [],
+        "lockfile_origin": "genuine package-manager output",
+        "line_anchor": "<artifactId>commons-text</artifactId> in the <dependencies> block"
+      },
+      "scanner_verification": {
+        "osv_1_9_2": true,
+        "osv_2_5_1": true,
+        "verified": "2026-09-22",
+        "reported_version": {
+          "osv_1_9_2": "1.9",
+          "osv_2_5_1": "1.9"
+        },
+        "note": "1 record in both versions; the dependencyManagement pin verified to keep commons-lang3 out of the results"
+      },
+      "arve_pipeline": {
+        "ingestion": "INGESTED",
+        "skip_reason": null,
+        "reaches_scanner": true,
+        "expected_arve_detected": true,
+        "expected_arve_count": 1,
+        "known_arve_divergence": null
+      }
+    },
+    {
+      "id": "DEP-10",
+      "engine": "osv",
+      "finding_type": "dependency",
+      "severity": "HIGH",
+      "file_path": "services/payout-scheduler/gradle.lockfile",
+      "file_type": "gradle-lockfile",
+      "line_start": 4,
+      "package_name": "org.yaml:snakeyaml",
+      "package_version": "1.33",
+      "ecosystem": "Maven",
+      "cve": "CVE-2022-1471",
+      "ghsa": "GHSA-mjmj-j48q-9wg2",
+      "history_only": false,
+      "tests": "INGESTION GAP: the Gradle lockfile format, from genuine `gradle dependencies --write-locks` output",
+      "notes": "Both osv-scanner versions parse gradle.lockfile and report this record when allowed to see the file, so an ARVE miss is purely an ingestion gap. Two JVM modules therefore behave differently: pom.xml (DEP-09) is ingested and gradle.lockfile is not, which shows the gap is about the filename allow-list rather than the ecosystem.",
+      "testbed": {
+        "direct_dependency": true,
+        "expected_finding_count": 1,
+        "total_records_for_package_in_this_file": 1,
+        "total_records_for_package": 1,
+        "additional_advisories": [],
+        "lockfile_origin": "genuine package-manager output"
+      },
+      "scanner_verification": {
+        "osv_1_9_2": true,
+        "osv_2_5_1": true,
+        "verified": "2026-09-22",
+        "reported_version": {
+          "osv_1_9_2": "1.33",
+          "osv_2_5_1": "1.33"
+        }
+      },
+      "arve_pipeline": {
+        "ingestion": "SKIPPED",
+        "skip_reason": "unsupported_file_type",
+        "reaches_scanner": false,
+        "expected_arve_detected": false,
+        "expected_arve_count": 0,
+        "known_arve_divergence": "INGESTION GAP: 'gradle.lockfile' is in neither allow-list, so it is SKIPPED unsupported_file_type and the Gradle module is scanned as though it had no dependencies."
+      }
+    },
+    {
+      "id": "DEP-11",
+      "engine": "osv",
+      "finding_type": "dependency",
+      "severity": "MEDIUM",
+      "file_path": "services/reconciler-go/go.mod",
+      "file_type": "go-mod",
+      "line_start": 5,
+      "package_name": "golang.org/x/text",
+      "package_version": "0.3.8",
+      "ecosystem": "Go",
+      "cve": "CVE-2026-56852",
+      "ghsa": "GO-2026-5970",
+      "history_only": false,
+      "tests": "the Go ecosystem, and an OSV ID that is neither a CVE nor a GHSA, with no severity data at all",
+      "notes": "Reported as GO-2026-5970. The record has a CVE alias but NO GHSA alias, no CVSS vector, no GitHub severity string and no ecosystem severity, so ARVE's severity resolution falls all the way through to the MEDIUM default. That makes this the cleanest severity-fallback test in the suite: DEP-08 still has a GitHub 'moderate' string to fall back on, this one has nothing. Version 0.3.8 was chosen over 0.3.7 deliberately - 0.3.7 also carries GHSA-69ch-w2m2-3vjp and GO-2022-1059, and the aim was one unambiguous record. The `go 1.27.1` directive is pinned to the current toolchain so OSV reports no Go stdlib advisories. NOTE: osv-scanner v1.9.2 additionally attempts govulncheck call analysis on go.mod and logs a non-fatal failure ('the Go toolchain is required' - its bundled Go is older than the directive); the record is still reported and the report is still written.",
+      "testbed": {
+        "direct_dependency": true,
+        "expected_finding_count": 1,
+        "total_records_for_package_in_this_file": 1,
+        "total_records_for_package": 1,
+        "additional_advisories": [],
+        "lockfile_origin": "genuine package-manager output"
+      },
+      "scanner_verification": {
+        "osv_1_9_2": true,
+        "osv_2_5_1": true,
+        "verified": "2026-09-22",
+        "reported_version": {
+          "osv_1_9_2": "0.3.8",
+          "osv_2_5_1": "0.3.8"
+        },
+        "note": "1 record in both versions; v1.9.2 logs a non-fatal govulncheck call-analysis failure that does not affect the report"
+      },
+      "arve_pipeline": {
+        "ingestion": "INGESTED",
+        "skip_reason": null,
+        "reaches_scanner": true,
+        "expected_arve_detected": true,
+        "expected_arve_count": 1,
+        "known_arve_divergence": "ARVE should emit MEDIUM here by DEFAULT rather than by mapping - the record carries no severity data of any kind. cve must populate from the alias while the OSV id stays GO-2026-5970."
+      }
+    },
+    {
+      "id": "DEP-12",
+      "engine": "osv",
+      "finding_type": "dependency",
+      "severity": "MEDIUM",
+      "file_path": "services/notifier-rust/Cargo.lock",
+      "file_type": "cargo-lock",
+      "line_start": 6,
+      "package_name": "ansi_term",
+      "package_version": "0.12.1",
+      "ecosystem": "crates.io",
+      "cve": null,
+      "ghsa": null,
+      "history_only": false,
+      "tests": "INGESTION GAP: Cargo.lock; plus an advisory ID that is neither a CVE nor a GHSA",
+      "notes": "RUSTSEC-2021-0139. INFORMATIONAL ADVISORY: this is an 'unmaintained crate' notice, not an exploitable vulnerability - affected[].database_specific.informational == 'unmaintained'. It is the only record in the testbed with NO CVE and NO GHSA alias, so ARVE must key it on the RUSTSEC id alone and must not drop it for lacking both. Both osv-scanner versions report it. Whether an unmaintained-crate notice should surface as a security finding at all is a product decision ARVE should make deliberately. Every RUSTSEC advisory found without a CVE or GHSA alias was of this informational kind; genuine RUSTSEC vulnerabilities are mirrored to GHSA.",
+      "testbed": {
+        "direct_dependency": true,
+        "expected_finding_count": 1,
+        "total_records_for_package_in_this_file": 1,
+        "total_records_for_package": 1,
+        "additional_advisories": [],
+        "lockfile_origin": "genuine package-manager output",
+        "line_anchor": "name = \"ansi_term\" in the [[package]] block"
+      },
+      "scanner_verification": {
+        "osv_1_9_2": true,
+        "osv_2_5_1": true,
+        "verified": "2026-09-22",
+        "reported_version": {
+          "osv_1_9_2": "0.12.1",
+          "osv_2_5_1": "0.12.1"
+        }
+      },
+      "arve_pipeline": {
+        "ingestion": "SKIPPED",
+        "skip_reason": "unsupported_file_type",
+        "reaches_scanner": false,
+        "expected_arve_detected": false,
+        "expected_arve_count": 0,
+        "known_arve_divergence": "INGESTION GAP: 'Cargo.lock' is not in the filename allow-list (Cargo.toml is), so the Rust ecosystem is scanned as empty - the manifest is ingested and the lockfile, the only thing OSV reads, is not."
+      }
+    },
+    {
+      "id": "DEP-13",
+      "engine": "osv",
+      "finding_type": "dependency",
+      "severity": "HIGH",
+      "file_path": "apps/admin-ui/yarn.lock",
+      "file_type": "yarn-lock",
+      "line_start": 5,
+      "package_name": "json5",
+      "package_version": "2.2.1",
+      "ecosystem": "npm",
+      "cve": "CVE-2022-46175",
+      "ghsa": "GHSA-9c47-m6qq-7p4h",
+      "history_only": false,
+      "tests": "the yarn.lock format (yarn classic v1), a lockfile format the testbed did not previously cover",
+      "notes": "Genuine `yarn install` output. axios was the candidate here and was rejected: axios 1.6.0 carries 29 advisories and 1.7.4 carries 30, mostly published in 2026 and still growing, which would swamp the answer key. json5 2.2.1 has exactly one.",
+      "testbed": {
+        "direct_dependency": true,
+        "expected_finding_count": 1,
+        "total_records_for_package_in_this_file": 1,
+        "total_records_for_package": 1,
+        "additional_advisories": [],
+        "lockfile_origin": "genuine package-manager output"
+      },
+      "scanner_verification": {
+        "osv_1_9_2": true,
+        "osv_2_5_1": true,
+        "verified": "2026-09-22",
+        "reported_version": {
+          "osv_1_9_2": "2.2.1",
+          "osv_2_5_1": "2.2.1"
+        },
+        "note": "1 record in both versions; yarn.lock parsed by both"
+      },
+      "arve_pipeline": {
+        "ingestion": "INGESTED",
+        "skip_reason": null,
+        "reaches_scanner": true,
+        "expected_arve_detected": true,
+        "expected_arve_count": 1,
+        "known_arve_divergence": null
+      }
+    },
+    {
+      "id": "DEP-14",
+      "engine": "osv",
+      "finding_type": "dependency",
+      "severity": "HIGH",
+      "file_path": "apps/partner-webhooks/pnpm-lock.yaml",
+      "file_type": "pnpm-lock",
+      "line_start": 34,
+      "package_name": "node-fetch",
+      "package_version": "2.6.0",
+      "ecosystem": "npm",
+      "cve": "CVE-2022-0235",
+      "ghsa": "GHSA-r683-j2x4-v87g",
+      "history_only": false,
+      "tests": "the pnpm lockfile format at lockfileVersion 9.0 - confirms ARVE's PINNED osv-scanner can parse it",
+      "notes": "Genuine `pnpm install --lockfile-only` output, lockfileVersion 9.0. This was a real risk worth testing: osv-scanner v1.9.2 predates pnpm 9 by some margin, and if it could not parse the format the plant would have been undetectable for ARVE while working perfectly for the reference version. Verified: both versions parse it and report the same records. The second advisory, GHSA-w7rc-rwvf-8q5r, is the only LOW-severity record in the whole testbed.",
+      "testbed": {
+        "direct_dependency": true,
+        "expected_finding_count": 2,
+        "total_records_for_package_in_this_file": 2,
+        "total_records_for_package": 2,
+        "additional_advisories": [
+          {
+            "ghsa": "GHSA-w7rc-rwvf-8q5r",
+            "cve": "CVE-2020-15168",
+            "severity": "LOW"
+          }
+        ],
+        "lockfile_origin": "genuine package-manager output",
+        "line_anchor": "node-fetch@2.6.0 entry in the packages: section"
+      },
+      "scanner_verification": {
+        "osv_1_9_2": true,
+        "osv_2_5_1": true,
+        "verified": "2026-09-22",
+        "reported_version": {
+          "osv_1_9_2": "2.6.0",
+          "osv_2_5_1": "2.6.0"
+        },
+        "note": "2 records in both versions; pnpm lockfileVersion 9.0 parsed correctly by the pinned v1.9.2"
+      },
+      "arve_pipeline": {
+        "ingestion": "INGESTED",
+        "skip_reason": null,
+        "reaches_scanner": true,
+        "expected_arve_detected": true,
+        "expected_arve_count": 2,
+        "known_arve_divergence": null
+      }
+    },
+    {
+      "id": "DEP-15",
+      "engine": "osv",
+      "finding_type": "dependency",
+      "severity": "HIGH",
+      "file_path": "services/ledger-export-dotnet/packages.lock.json",
+      "file_type": "nuget-lock",
+      "line_start": 5,
+      "package_name": "Newtonsoft.Json",
+      "package_version": "12.0.1",
+      "ecosystem": "NuGet",
+      "cve": "CVE-2024-21907",
+      "ghsa": "GHSA-5crp-9r3c-p9vr",
+      "history_only": false,
+      "tests": "the NuGet ecosystem, ingested only because packages.lock.json happens to end in .json",
+      "notes": "Genuine `dotnet restore --use-lock-file` output. This lockfile is ingested by ACCIDENT rather than by design: 'packages.lock.json' is not in ARVE's filename allow-list, but '.json' is in the extension allow-list, so it survives where Cargo.lock, poetry.lock and Gemfile.lock do not. SCANNER-VERSION DIVERGENCE: osv-scanner 2.5.1 reports this package from BOTH LedgerExport.csproj and packages.lock.json (2 records), while 1.9.2 reports it only from the lockfile (1 record). ARVE is unaffected today because .csproj is SKIPPED, but the duplicate would become two findings if the allow-list ever gained .csproj, since file_path is part of the dependency fingerprint.",
+      "testbed": {
+        "direct_dependency": true,
+        "expected_finding_count": 1,
+        "total_records_for_package_in_this_file": 1,
+        "total_records_for_package": 1,
+        "additional_advisories": [],
+        "lockfile_origin": "genuine package-manager output",
+        "line_anchor": "\"Newtonsoft.Json\" entry under dependencies/net8.0"
+      },
+      "scanner_verification": {
+        "osv_1_9_2": true,
+        "osv_2_5_1": true,
+        "verified": "2026-09-22",
+        "reported_version": {
+          "osv_1_9_2": "12.0.1",
+          "osv_2_5_1": "12.0.1"
+        },
+        "note": "1 record on v1.9.2 (lockfile only); 2 on v2.5.1 (lockfile AND .csproj) - see the inventory entry flagged reported_by"
+      },
+      "arve_pipeline": {
+        "ingestion": "INGESTED",
+        "skip_reason": null,
+        "reaches_scanner": true,
+        "expected_arve_detected": true,
+        "expected_arve_count": 1,
+        "known_arve_divergence": "Ingested only because of the .json extension, not because the lockfile is recognised by name."
+      }
+    },
+    {
+      "id": "DEP-16",
+      "engine": "osv",
+      "finding_type": "dependency",
+      "severity": "HIGH",
+      "file_path": "tools/poetry.lock",
+      "file_type": "poetry-lock",
+      "line_start": 4,
+      "package_name": "wheel",
+      "package_version": "0.37.0",
+      "ecosystem": "PyPI",
+      "cve": "CVE-2022-40898",
+      "ghsa": "GHSA-qwmp-2cf2-g9g6",
+      "history_only": false,
+      "tests": "INGESTION GAP: poetry.lock, the PyPI lockfile ARVE cannot see",
+      "notes": "Genuine `poetry lock` output (lock-version 2.0). Two records: the GHSA and its PYSEC alias duplicate, which carries no CVSS and no GitHub severity and so takes the same no-severity-data fallback as DEP-01's PYSEC records. The Python ecosystem is where ARVE's ingestion is least consistent: requirements.txt is ingested and pyproject.toml is ingested, but poetry.lock and Pipfile.lock - the files that actually pin versions - are not.",
+      "testbed": {
+        "direct_dependency": true,
+        "expected_finding_count": 2,
+        "total_records_for_package_in_this_file": 2,
+        "total_records_for_package": 2,
+        "additional_advisories": [
+          {
+            "osv_id": "PYSEC-2022-43017",
+            "severity": "MEDIUM",
+            "note": "alias duplicate, no severity data"
+          }
+        ],
+        "lockfile_origin": "genuine package-manager output",
+        "line_anchor": "name = \"wheel\" in the [[package]] block"
+      },
+      "scanner_verification": {
+        "osv_1_9_2": true,
+        "osv_2_5_1": true,
+        "verified": "2026-09-22",
+        "reported_version": {
+          "osv_1_9_2": "0.37.0",
+          "osv_2_5_1": "0.37.0"
+        }
+      },
+      "arve_pipeline": {
+        "ingestion": "SKIPPED",
+        "skip_reason": "unsupported_file_type",
+        "reaches_scanner": false,
+        "expected_arve_detected": false,
+        "expected_arve_count": 0,
+        "known_arve_divergence": "INGESTION GAP: 'poetry.lock' is in no allow-list, so it is SKIPPED unsupported_file_type - while tools/pyproject.toml beside it IS ingested and gives OSV nothing to resolve."
+      }
+    },
+    {
+      "id": "DEP-17",
+      "engine": "osv",
+      "finding_type": "dependency",
+      "severity": "MEDIUM",
+      "file_path": "tools/requirements-dev.txt",
+      "file_type": "pip-requirements",
+      "line_start": 1,
+      "package_name": "jinja2",
+      "package_version": "3.1.5",
+      "ecosystem": "PyPI",
+      "cve": "CVE-2025-27516",
+      "ghsa": "GHSA-cpwx-vrp4-4pq7",
+      "history_only": false,
+      "tests": "INGESTION GAP: exact-filename matching. 'requirements.txt' is allowed, 'requirements-dev.txt' is not",
+      "notes": "Genuine `pip-compile` output. CONFIRMED: osv-scanner v1.9.2 DOES detect and parse this filename - it reports both records when allowed to see the file - so the miss is entirely ARVE's filename allow-list, which matches the exact string 'requirements.txt'. Every requirements-*.txt variant (dev, test, ci, prod) is therefore invisible, and splitting dev dependencies into such a file is a common layout. jinja2 3.1.5 was chosen over 3.1.4 (6 records) for an unambiguous count. markupsafe 3.0.3, its only dependency, is advisory-free.",
+      "testbed": {
+        "direct_dependency": true,
+        "expected_finding_count": 2,
+        "total_records_for_package_in_this_file": 2,
+        "total_records_for_package": 2,
+        "additional_advisories": [
+          {
+            "osv_id": "PYSEC-2026-1471",
+            "severity": "MEDIUM",
+            "note": "alias duplicate; CVSS_V4 vector but no GitHub severity string"
+          }
+        ],
+        "lockfile_origin": "genuine package-manager output"
+      },
+      "scanner_verification": {
+        "osv_1_9_2": true,
+        "osv_2_5_1": true,
+        "verified": "2026-09-22",
+        "reported_version": {
+          "osv_1_9_2": "3.1.5",
+          "osv_2_5_1": "3.1.5"
+        }
+      },
+      "arve_pipeline": {
+        "ingestion": "SKIPPED",
+        "skip_reason": "unsupported_file_type",
+        "reaches_scanner": false,
+        "expected_arve_detected": false,
+        "expected_arve_count": 0,
+        "known_arve_divergence": "INGESTION GAP: the filename allow-list is an exact match against 'requirements.txt'; 'requirements-dev.txt' has extension '.txt', which is in no extension allow-list either, so it is SKIPPED unsupported_file_type."
+      }
+    },
+    {
+      "id": "DEP-18",
+      "engine": "osv",
+      "finding_type": "dependency",
+      "severity": "HIGH",
+      "file_path": "apps/merchant-portal/Gemfile.lock",
+      "file_type": "gemfile-lock",
+      "line_start": 4,
+      "package_name": "addressable",
+      "package_version": "2.7.0",
+      "ecosystem": "RubyGems",
+      "cve": "CVE-2021-32740",
+      "ghsa": "GHSA-jxhc-q857-3j6g",
+      "history_only": false,
+      "tests": "INGESTION GAP: a fifth ecosystem (RubyGems) whose lockfile ARVE cannot see",
+      "notes": "Genuine `bundle lock` output. Two records, both HIGH. public_suffix 4.0.7, its only dependency, is advisory-free. Packagist/composer.lock was the alternative and was dropped: the best candidate found (guzzlehttp/psr7 1.8.1) carries 6 advisories.",
+      "testbed": {
+        "direct_dependency": true,
+        "expected_finding_count": 2,
+        "total_records_for_package_in_this_file": 2,
+        "total_records_for_package": 2,
+        "additional_advisories": [
+          {
+            "ghsa": "GHSA-h27x-rffw-24p4",
+            "cve": "CVE-2026-35611",
+            "severity": "HIGH"
+          }
+        ],
+        "lockfile_origin": "genuine package-manager output",
+        "line_anchor": "addressable (2.7.0) under GEM/specs"
+      },
+      "scanner_verification": {
+        "osv_1_9_2": true,
+        "osv_2_5_1": true,
+        "verified": "2026-09-22",
+        "reported_version": {
+          "osv_1_9_2": "2.7.0",
+          "osv_2_5_1": "2.7.0"
+        }
+      },
+      "arve_pipeline": {
+        "ingestion": "SKIPPED",
+        "skip_reason": "unsupported_file_type",
+        "reaches_scanner": false,
+        "expected_arve_detected": false,
+        "expected_arve_count": 0,
+        "known_arve_divergence": "INGESTION GAP: 'Gemfile.lock' is in no allow-list, so it is SKIPPED unsupported_file_type and the Ruby ecosystem is scanned as empty."
+      }
+    },
+    {
+      "id": "DEP-19",
+      "engine": "osv",
+      "finding_type": "dependency",
+      "severity": "MEDIUM",
+      "file_path": "apps/admin-ui/yarn.lock",
+      "file_type": "yarn-lock",
+      "line_start": 15,
+      "package_name": "minimist",
+      "package_version": "1.2.0",
+      "ecosystem": "npm",
+      "cve": "CVE-2020-7598",
+      "ghsa": "GHSA-vh95-rmgr-6w4m",
+      "history_only": false,
+      "tests": "THE SAME package+version+advisories as DEP-05, in a DIFFERENT lockfile - must produce SEPARATE findings",
+      "notes": "minimist 1.2.0 is already planted in web/package-lock.json as DEP-05. This is the identical package, version and pair of advisories in apps/admin-ui/yarn.lock. Because file_path IS an input to ARVE's dependency fingerprint, these must be 2 findings distinct from DEP-05's 2 - four in total across the repository for one package version. This is the positive control for DEP-20: it shows the fingerprint DOES separate by file, which is what makes the version omission a specific defect rather than general collapsing.",
+      "testbed": {
+        "direct_dependency": true,
+        "expected_finding_count": 2,
+        "total_records_for_package_in_this_file": 2,
+        "total_records_for_package": 2,
+        "additional_advisories": [
+          {
+            "ghsa": "GHSA-xvch-5gv4-984h",
+            "cve": "CVE-2021-44906",
+            "severity": "CRITICAL"
+          }
+        ],
+        "lockfile_origin": "genuine package-manager output",
+        "line_anchor": "minimist@1.2.0 entry"
+      },
+      "scanner_verification": {
+        "osv_1_9_2": true,
+        "osv_2_5_1": true,
+        "verified": "2026-09-22",
+        "reported_version": {
+          "osv_1_9_2": "1.2.0",
+          "osv_2_5_1": "1.2.0"
+        },
+        "note": "2 records in both versions, reported separately from the web/package-lock.json copy"
+      },
+      "arve_pipeline": {
+        "ingestion": "INGESTED",
+        "skip_reason": null,
+        "reaches_scanner": true,
+        "expected_arve_detected": true,
+        "expected_arve_count": 2,
+        "known_arve_divergence": "Must NOT collapse with DEP-05: file_path is part of the fingerprint, so the same package version in two lockfiles is two findings."
+      }
+    },
+    {
+      "id": "DEP-20",
+      "engine": "osv",
+      "finding_type": "dependency",
+      "severity": "CRITICAL",
+      "file_path": "apps/partner-webhooks/pnpm-lock.yaml",
+      "file_type": "pnpm-lock",
+      "line_start": 23,
+      "package_name": "minimist",
+      "package_version": "0.0.8",
+      "ecosystem": "npm",
+      "cve": "CVE-2021-44906",
+      "ghsa": "GHSA-xvch-5gv4-984h",
+      "history_only": false,
+      "tests": "NORMALIZER STRESS: one lockfile, TWO versions of one package, one shared advisory - the fingerprint omits the version",
+      "notes": "The lockfile holds minimist 0.0.8 (pinned exactly by mkdirp@0.5.1, a genuine advisory-free parent) and minimist 1.2.5 (direct). OSV reports 3 records: 0.0.8 carries GHSA-vh95-rmgr-6w4m and GHSA-xvch-5gv4-984h, and 1.2.5 carries GHSA-xvch-5gv4-984h only (vh95 is fixed in 1.2.3). The two GHSA-xvch-5gv4-984h records differ ONLY by version - and version is not an input to ARVE's fingerprint SHA256(engine|dependency|package|ecosystem|vuln_id|file_path) - so they collapse. EXPECTED ARVE RESULT: 2 findings, not 3. That matters for remediation as well as counting: the two versions have different fixed versions and arrive by different paths (one direct, one via mkdirp), so they are two separate pieces of work and one silently disappears. See ARVE_ISSUES.md issue 4.",
+      "testbed": {
+        "direct_dependency": false,
+        "expected_finding_count": 3,
+        "total_records_for_package_in_this_file": 3,
+        "total_records_for_package": 3,
+        "additional_advisories": [
+          {
+            "ghsa": "GHSA-vh95-rmgr-6w4m",
+            "cve": "CVE-2020-7598",
+            "severity": "MEDIUM",
+            "note": "minimist 0.0.8 only"
+          },
+          {
+            "ghsa": "GHSA-xvch-5gv4-984h",
+            "cve": "CVE-2021-44906",
+            "severity": "CRITICAL",
+            "note": "minimist 1.2.5 - collapses with the 0.0.8 record of the same advisory"
+          }
+        ],
+        "lockfile_origin": "genuine package-manager output",
+        "line_anchor": "minimist@0.0.8 entry in the packages: section; minimist@1.2.5 is at line 26"
+      },
+      "scanner_verification": {
+        "osv_1_9_2": true,
+        "osv_2_5_1": true,
+        "verified": "2026-09-22",
+        "reported_version": {
+          "osv_1_9_2": "0.0.8",
+          "osv_2_5_1": "0.0.8"
+        },
+        "note": "3 records in both versions (0.0.8 twice, 1.2.5 once)"
+      },
+      "arve_pipeline": {
+        "ingestion": "INGESTED",
+        "skip_reason": null,
+        "reaches_scanner": true,
+        "expected_arve_detected": true,
+        "expected_arve_count": 2,
+        "known_arve_divergence": "COLLAPSE EXPECTED: 3 OSV records -> 2 ARVE findings. The dependency fingerprint omits package_version, so the same advisory on two versions in one file yields one identity."
+      }
     }
   ],
   "expected_osv_inventory": [
@@ -1726,6 +2288,298 @@
       "severity_source": "github_severity_string",
       "summary": "Out-of-bounds Read in stringstream",
       "file_path": "web/package-lock.json"
+    },
+    {
+      "ecosystem": "Maven",
+      "package_name": "org.apache.commons:commons-text",
+      "package_version": "1.9",
+      "osv_id": "GHSA-599f-7c49-w659",
+      "ghsa": "GHSA-599f-7c49-w659",
+      "cve": "CVE-2022-42889",
+      "github_severity": "CRITICAL",
+      "has_cvss": true,
+      "severity": "CRITICAL",
+      "severity_source": "github_severity_string",
+      "summary": "Arbitrary code execution in Apache Commons Text (Text4Shell)",
+      "file_path": "services/settlement-java/pom.xml"
+    },
+    {
+      "ecosystem": "Maven",
+      "package_name": "org.yaml:snakeyaml",
+      "package_version": "1.33",
+      "osv_id": "GHSA-mjmj-j48q-9wg2",
+      "ghsa": "GHSA-mjmj-j48q-9wg2",
+      "cve": "CVE-2022-1471",
+      "github_severity": "HIGH",
+      "has_cvss": true,
+      "severity": "HIGH",
+      "severity_source": "github_severity_string",
+      "summary": "SnakeYaml Constructor Deserialization Remote Code Execution",
+      "file_path": "services/payout-scheduler/gradle.lockfile"
+    },
+    {
+      "ecosystem": "Go",
+      "package_name": "golang.org/x/text",
+      "package_version": "0.3.8",
+      "osv_id": "GO-2026-5970",
+      "ghsa": null,
+      "cve": "CVE-2026-56852",
+      "github_severity": null,
+      "has_cvss": false,
+      "severity": "MEDIUM",
+      "severity_source": "no_severity_data",
+      "summary": "Infinite loop on invalid input in golang.org/x/text",
+      "file_path": "services/reconciler-go/go.mod",
+      "testbed_note": "OSV ID is neither a CVE nor a GHSA. It has a CVE alias but NO GHSA alias and no severity data of any kind, so severity falls all the way through to the MEDIUM default."
+    },
+    {
+      "ecosystem": "crates.io",
+      "package_name": "ansi_term",
+      "package_version": "0.12.1",
+      "osv_id": "RUSTSEC-2021-0139",
+      "ghsa": null,
+      "cve": null,
+      "github_severity": null,
+      "has_cvss": false,
+      "severity": "MEDIUM",
+      "severity_source": "no_severity_data",
+      "summary": "ansi_term is Unmaintained",
+      "file_path": "services/notifier-rust/Cargo.lock",
+      "advisory_class": "informational: unmaintained",
+      "testbed_note": "INFORMATIONAL 'unmaintained' advisory, not an exploitable vulnerability: affected[].database_specific.informational == 'unmaintained'. No CVE, no GHSA, no CVSS, no GitHub severity - the only record in this testbed with no alias of either kind. Both osv-scanner versions report it. ARVE should emit MEDIUM by default; treating unmaintained-crate notices as vulnerabilities is a product decision worth making deliberately."
+    },
+    {
+      "ecosystem": "npm",
+      "package_name": "json5",
+      "package_version": "2.2.1",
+      "osv_id": "GHSA-9c47-m6qq-7p4h",
+      "ghsa": "GHSA-9c47-m6qq-7p4h",
+      "cve": "CVE-2022-46175",
+      "github_severity": "HIGH",
+      "has_cvss": true,
+      "severity": "HIGH",
+      "severity_source": "github_severity_string",
+      "summary": "Prototype Pollution in JSON5 via Parse Method",
+      "file_path": "apps/admin-ui/yarn.lock"
+    },
+    {
+      "ecosystem": "npm",
+      "package_name": "minimist",
+      "package_version": "1.2.0",
+      "osv_id": "GHSA-vh95-rmgr-6w4m",
+      "ghsa": "GHSA-vh95-rmgr-6w4m",
+      "cve": "CVE-2020-7598",
+      "github_severity": "MODERATE",
+      "has_cvss": true,
+      "severity": "MEDIUM",
+      "severity_source": "github_severity_string",
+      "summary": "Prototype Pollution in minimist",
+      "file_path": "apps/admin-ui/yarn.lock"
+    },
+    {
+      "ecosystem": "npm",
+      "package_name": "minimist",
+      "package_version": "1.2.0",
+      "osv_id": "GHSA-xvch-5gv4-984h",
+      "ghsa": "GHSA-xvch-5gv4-984h",
+      "cve": "CVE-2021-44906",
+      "github_severity": "CRITICAL",
+      "has_cvss": true,
+      "severity": "CRITICAL",
+      "severity_source": "github_severity_string",
+      "summary": "Prototype Pollution in minimist",
+      "file_path": "apps/admin-ui/yarn.lock"
+    },
+    {
+      "ecosystem": "npm",
+      "package_name": "node-fetch",
+      "package_version": "2.6.0",
+      "osv_id": "GHSA-r683-j2x4-v87g",
+      "ghsa": "GHSA-r683-j2x4-v87g",
+      "cve": "CVE-2022-0235",
+      "github_severity": "HIGH",
+      "has_cvss": true,
+      "severity": "HIGH",
+      "severity_source": "github_severity_string",
+      "summary": "node-fetch forwards secure headers to untrusted sites",
+      "file_path": "apps/partner-webhooks/pnpm-lock.yaml"
+    },
+    {
+      "ecosystem": "npm",
+      "package_name": "node-fetch",
+      "package_version": "2.6.0",
+      "osv_id": "GHSA-w7rc-rwvf-8q5r",
+      "ghsa": "GHSA-w7rc-rwvf-8q5r",
+      "cve": "CVE-2020-15168",
+      "github_severity": "LOW",
+      "has_cvss": true,
+      "severity": "LOW",
+      "severity_source": "github_severity_string",
+      "summary": "The size option isn't honored after following a redirect",
+      "file_path": "apps/partner-webhooks/pnpm-lock.yaml",
+      "testbed_note": "The only LOW record in the testbed - checks that the full canonical severity vocabulary is exercised, not just MEDIUM/HIGH/CRITICAL."
+    },
+    {
+      "ecosystem": "npm",
+      "package_name": "minimist",
+      "package_version": "0.0.8",
+      "osv_id": "GHSA-vh95-rmgr-6w4m",
+      "ghsa": "GHSA-vh95-rmgr-6w4m",
+      "cve": "CVE-2020-7598",
+      "github_severity": "MODERATE",
+      "has_cvss": true,
+      "severity": "MEDIUM",
+      "severity_source": "github_severity_string",
+      "summary": "Prototype Pollution in minimist",
+      "file_path": "apps/partner-webhooks/pnpm-lock.yaml"
+    },
+    {
+      "ecosystem": "npm",
+      "package_name": "minimist",
+      "package_version": "0.0.8",
+      "osv_id": "GHSA-xvch-5gv4-984h",
+      "ghsa": "GHSA-xvch-5gv4-984h",
+      "cve": "CVE-2021-44906",
+      "github_severity": "CRITICAL",
+      "has_cvss": true,
+      "severity": "CRITICAL",
+      "severity_source": "github_severity_string",
+      "summary": "Prototype Pollution in minimist",
+      "file_path": "apps/partner-webhooks/pnpm-lock.yaml",
+      "testbed_note": "DEP-20: same advisory, same file, DIFFERENT version as the minimist 1.2.5 record below. ARVE's dependency fingerprint omits the version, so these two collapse into one finding."
+    },
+    {
+      "ecosystem": "npm",
+      "package_name": "minimist",
+      "package_version": "1.2.5",
+      "osv_id": "GHSA-xvch-5gv4-984h",
+      "ghsa": "GHSA-xvch-5gv4-984h",
+      "cve": "CVE-2021-44906",
+      "github_severity": "CRITICAL",
+      "has_cvss": true,
+      "severity": "CRITICAL",
+      "severity_source": "github_severity_string",
+      "summary": "Prototype Pollution in minimist",
+      "file_path": "apps/partner-webhooks/pnpm-lock.yaml",
+      "testbed_note": "DEP-20: collapses with the minimist 0.0.8 record above under ARVE's version-less fingerprint."
+    },
+    {
+      "ecosystem": "NuGet",
+      "package_name": "Newtonsoft.Json",
+      "package_version": "12.0.1",
+      "osv_id": "GHSA-5crp-9r3c-p9vr",
+      "ghsa": "GHSA-5crp-9r3c-p9vr",
+      "cve": "CVE-2024-21907",
+      "github_severity": "HIGH",
+      "has_cvss": true,
+      "severity": "HIGH",
+      "severity_source": "github_severity_string",
+      "summary": "Improper Handling of Exceptional Conditions in Newtonsoft.Json",
+      "file_path": "services/ledger-export-dotnet/packages.lock.json"
+    },
+    {
+      "ecosystem": "NuGet",
+      "package_name": "Newtonsoft.Json",
+      "package_version": "12.0.1",
+      "osv_id": "GHSA-5crp-9r3c-p9vr",
+      "ghsa": "GHSA-5crp-9r3c-p9vr",
+      "cve": "CVE-2024-21907",
+      "github_severity": "HIGH",
+      "has_cvss": true,
+      "severity": "HIGH",
+      "severity_source": "github_severity_string",
+      "summary": "Improper Handling of Exceptional Conditions in Newtonsoft.Json",
+      "file_path": "services/ledger-export-dotnet/LedgerExport.csproj",
+      "reported_by": {
+        "osv_1_9_2": false,
+        "osv_2_5_1": true
+      },
+      "testbed_note": "SCANNER-VERSION DIVERGENCE, not a separate plant. osv-scanner 2.5.1 reports this package from BOTH the .csproj and packages.lock.json (two sources, same package); 1.9.2 reports it only from the lockfile. ARVE is unaffected today because .csproj is SKIPPED at ingestion - but if the allow-list ever gains .csproj, the same vulnerability would be counted twice with different file_paths, which the dependency fingerprint treats as two findings."
+    },
+    {
+      "ecosystem": "PyPI",
+      "package_name": "wheel",
+      "package_version": "0.37.0",
+      "osv_id": "GHSA-qwmp-2cf2-g9g6",
+      "ghsa": "GHSA-qwmp-2cf2-g9g6",
+      "cve": "CVE-2022-40898",
+      "github_severity": "HIGH",
+      "has_cvss": true,
+      "severity": "HIGH",
+      "severity_source": "github_severity_string",
+      "summary": "pypa/wheel vulnerable to Regular Expression denial of service (ReDoS)",
+      "file_path": "tools/poetry.lock"
+    },
+    {
+      "ecosystem": "PyPI",
+      "package_name": "wheel",
+      "package_version": "0.37.0",
+      "osv_id": "PYSEC-2022-43017",
+      "ghsa": "GHSA-qwmp-2cf2-g9g6",
+      "cve": "CVE-2022-40898",
+      "github_severity": null,
+      "has_cvss": false,
+      "severity": "MEDIUM",
+      "severity_source": "no_severity_data",
+      "summary": "",
+      "file_path": "tools/poetry.lock"
+    },
+    {
+      "ecosystem": "PyPI",
+      "package_name": "jinja2",
+      "package_version": "3.1.5",
+      "osv_id": "GHSA-cpwx-vrp4-4pq7",
+      "ghsa": "GHSA-cpwx-vrp4-4pq7",
+      "cve": "CVE-2025-27516",
+      "github_severity": "MODERATE",
+      "has_cvss": true,
+      "severity": "MEDIUM",
+      "severity_source": "github_severity_string",
+      "summary": "Jinja2 vulnerable to sandbox breakout through attr filter",
+      "file_path": "tools/requirements-dev.txt"
+    },
+    {
+      "ecosystem": "PyPI",
+      "package_name": "jinja2",
+      "package_version": "3.1.5",
+      "osv_id": "PYSEC-2026-1471",
+      "ghsa": "GHSA-cpwx-vrp4-4pq7",
+      "cve": "CVE-2025-27516",
+      "github_severity": null,
+      "has_cvss": true,
+      "severity": "MEDIUM",
+      "severity_source": "cvss_only",
+      "summary": "Jinja2 vulnerable to sandbox breakout through attr filter",
+      "file_path": "tools/requirements-dev.txt",
+      "testbed_note": "Carries a CVSS_V4 vector but no GitHub severity string. ARVE's severity resolution starts from a numeric CVSS score; OSV stores a vector string, so this record exercises the fallback path."
+    },
+    {
+      "ecosystem": "RubyGems",
+      "package_name": "addressable",
+      "package_version": "2.7.0",
+      "osv_id": "GHSA-h27x-rffw-24p4",
+      "ghsa": "GHSA-h27x-rffw-24p4",
+      "cve": "CVE-2026-35611",
+      "github_severity": "HIGH",
+      "has_cvss": true,
+      "severity": "HIGH",
+      "severity_source": "github_severity_string",
+      "summary": "Addressable has a Regular Expression Denial of Service",
+      "file_path": "apps/merchant-portal/Gemfile.lock"
+    },
+    {
+      "ecosystem": "RubyGems",
+      "package_name": "addressable",
+      "package_version": "2.7.0",
+      "osv_id": "GHSA-jxhc-q857-3j6g",
+      "ghsa": "GHSA-jxhc-q857-3j6g",
+      "cve": "CVE-2021-32740",
+      "github_severity": "HIGH",
+      "has_cvss": true,
+      "severity": "HIGH",
+      "severity_source": "github_severity_string",
+      "summary": "Regular Expression Denial of Service in Addressable templates",
+      "file_path": "apps/merchant-portal/Gemfile.lock"
     }
   ],
   "packages_expected_clean": [
@@ -1818,7 +2672,7 @@
     "scanner_limitations": "scanner behaviour discovered while planting that is NOT a plant and NOT scored. Secret values in test strings are replaced by {VALUE}; value_shape says how the tested value was generated, so the test can be re-run with a fresh synthetic value without planting it here."
   },
   "expected_gitleaks_finding_count_via_arve_ingestion": 24,
-  "expected_osv_record_count_via_arve_ingestion": 30,
+  "expected_osv_record_count_via_arve_ingestion": 41,
   "osv_verified_with": "osv-scanner 2.5.1, 2026-08-31; re-verified 2026-09-22 with osv-scanner 1.9.2 (ARVE pinned) and 2.5.1 (reference)",
   "advisory_drift": [
     {
@@ -2270,6 +3124,56 @@
         "locations": 1
       },
       {
+        "file_type": "cargo-lock",
+        "engine": "osv",
+        "ingestion": "SKIPPED",
+        "skip_reason": "unsupported_file_type",
+        "plants": [
+          "DEP-12"
+        ],
+        "locations": 1
+      },
+      {
+        "file_type": "gemfile-lock",
+        "engine": "osv",
+        "ingestion": "SKIPPED",
+        "skip_reason": "unsupported_file_type",
+        "plants": [
+          "DEP-18"
+        ],
+        "locations": 1
+      },
+      {
+        "file_type": "go-mod",
+        "engine": "osv",
+        "ingestion": "INGESTED",
+        "skip_reason": null,
+        "plants": [
+          "DEP-11"
+        ],
+        "locations": 1
+      },
+      {
+        "file_type": "gradle-lockfile",
+        "engine": "osv",
+        "ingestion": "SKIPPED",
+        "skip_reason": "unsupported_file_type",
+        "plants": [
+          "DEP-10"
+        ],
+        "locations": 1
+      },
+      {
+        "file_type": "maven-pom",
+        "engine": "osv",
+        "ingestion": "INGESTED",
+        "skip_reason": null,
+        "plants": [
+          "DEP-09"
+        ],
+        "locations": 1
+      },
+      {
         "file_type": "npm-package-lock",
         "engine": "osv",
         "ingestion": "INGESTED",
@@ -2285,6 +3189,16 @@
         "locations": 6
       },
       {
+        "file_type": "nuget-lock",
+        "engine": "osv",
+        "ingestion": "INGESTED",
+        "skip_reason": null,
+        "plants": [
+          "DEP-15"
+        ],
+        "locations": 1
+      },
+      {
         "file_type": "pip-requirements",
         "engine": "osv",
         "ingestion": "INGESTED",
@@ -2294,18 +3208,75 @@
           "DEP-02"
         ],
         "locations": 2
+      },
+      {
+        "file_type": "pip-requirements",
+        "engine": "osv",
+        "ingestion": "SKIPPED",
+        "skip_reason": "unsupported_file_type",
+        "plants": [
+          "DEP-17"
+        ],
+        "locations": 1
+      },
+      {
+        "file_type": "pnpm-lock",
+        "engine": "osv",
+        "ingestion": "INGESTED",
+        "skip_reason": null,
+        "plants": [
+          "DEP-14",
+          "DEP-20"
+        ],
+        "locations": 2
+      },
+      {
+        "file_type": "poetry-lock",
+        "engine": "osv",
+        "ingestion": "SKIPPED",
+        "skip_reason": "unsupported_file_type",
+        "plants": [
+          "DEP-16"
+        ],
+        "locations": 1
+      },
+      {
+        "file_type": "yarn-lock",
+        "engine": "osv",
+        "ingestion": "INGESTED",
+        "skip_reason": null,
+        "plants": [
+          "DEP-13",
+          "DEP-19"
+        ],
+        "locations": 2
       }
     ],
     "totals": {
-      "plants": 35,
-      "plants_reaching_arve_scanner": 27,
-      "plants_skipped_at_ingestion": 7,
+      "plants": 47,
+      "plants_reaching_arve_scanner": 34,
+      "plants_skipped_at_ingestion": 12,
       "plants_history_only": 1
     }
   },
   "expected_osv_records_by_file": {
+    "apps/admin-ui/yarn.lock": 3,
+    "apps/merchant-portal/Gemfile.lock": 2,
+    "apps/partner-webhooks/pnpm-lock.yaml": 5,
     "backend/requirements.txt": 11,
+    "services/ledger-export-dotnet/LedgerExport.csproj": 1,
+    "services/ledger-export-dotnet/packages.lock.json": 1,
+    "services/notifier-rust/Cargo.lock": 1,
+    "services/payout-scheduler/gradle.lockfile": 1,
+    "services/reconciler-go/go.mod": 1,
+    "services/settlement-java/pom.xml": 1,
+    "tools/poetry.lock": 2,
+    "tools/requirements-dev.txt": 2,
     "web/package-lock.json": 19
   },
-  "expected_arve_finding_count_after_normalization": 23
+  "expected_arve_finding_count_after_normalization": 23,
+  "expected_osv_record_count_by_scanner": {
+    "osv_1_9_2": 49,
+    "osv_2_5_1": 50
+  }
 }

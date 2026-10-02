@@ -1349,3 +1349,220 @@ This completes a set of three:
 
 The pre-rotation value is derived from a fixed seed by `seed_history.py` and
 never appears at HEAD. The rotation commit and its hash are added in Phase 5.
+
+---
+
+# Group D — v1.1 dependencies (`DEP-09` …)
+
+Ten new ecosystems and lockfile formats. **Every lockfile is genuine
+package-manager output**, produced by running the real tool in a throwaway
+container — `yarn install`, `pnpm install --lockfile-only`, `go mod tidy`,
+`cargo generate-lockfile`, `poetry lock`, `pip-compile`, `bundle lock`,
+`dotnet restore --use-lock-file`, `gradle dependencies --write-locks`. Only
+`pom.xml` is hand-written, because OSV reads it as a manifest rather than a
+lockfile.
+
+**The headline result: five of the twelve are invisible to ARVE**, and in every
+case the pinned scanner parses the file perfectly well when allowed to see it.
+That makes each of them a clean ingestion gap rather than a scanner limitation.
+
+| ID | File | Package | Records | ARVE |
+|---|---|---|---|---|
+| DEP-09 | `services/settlement-java/pom.xml` | commons-text 1.9 | 1 | ✅ 1 |
+| **DEP-10** | `services/payout-scheduler/gradle.lockfile` | snakeyaml 1.33 | 1 | ⛔ **0** |
+| DEP-11 | `services/reconciler-go/go.mod` | golang.org/x/text 0.3.8 | 1 | ✅ 1 |
+| **DEP-12** | `services/notifier-rust/Cargo.lock` | ansi_term 0.12.1 | 1 | ⛔ **0** |
+| DEP-13 | `apps/admin-ui/yarn.lock` | json5 2.2.1 | 1 | ✅ 1 |
+| DEP-14 | `apps/partner-webhooks/pnpm-lock.yaml` | node-fetch 2.6.0 | 2 | ✅ 2 |
+| DEP-15 | `services/ledger-export-dotnet/packages.lock.json` | Newtonsoft.Json 12.0.1 | 1 | ✅ 1 |
+| **DEP-16** | `tools/poetry.lock` | wheel 0.37.0 | 2 | ⛔ **0** |
+| **DEP-17** | `tools/requirements-dev.txt` | jinja2 3.1.5 | 2 | ⛔ **0** |
+| **DEP-18** | `apps/merchant-portal/Gemfile.lock` | addressable 2.7.0 | 2 | ⛔ **0** |
+| DEP-19 | `apps/admin-ui/yarn.lock` | minimist 1.2.0 (= DEP-05) | 2 | ✅ 2 |
+| DEP-20 | `apps/partner-webhooks/pnpm-lock.yaml` | minimist 0.0.8 **+** 1.2.5 | 3 | ⚠ **2** |
+
+---
+
+## DEP-09 — Maven manifest, read directly
+
+`org.apache.commons:commons-text 1.9` — **CVE-2022-42889** (Text4Shell),
+`CRITICAL`, 1 record, at `pom.xml` line **19**. ✅ INGESTED.
+
+`pom.xml` is the one dependency source OSV reads as a *manifest*, so this proves
+the Maven path independently of DEP-10.
+
+**⚠ Both OSV versions resolve Maven transitively over the network** (via
+deps.dev). commons-text 1.9 pulls `commons-lang3 3.11`, which has its own
+advisory — so `commons-lang3` is pinned to **3.20.0** in `dependencyManagement`
+purely to hold the noise floor at zero. **Without that pin this file reports 2
+records, not 1.**
+
+*Substitution:* log4j-core 2.14.1 was the original candidate. It carries **7**
+advisories, two published in 2026 and still growing.
+
+---
+
+## DEP-10 — Gradle lockfile ⛔ ingestion gap
+
+`org.yaml:snakeyaml 1.33` — CVE-2022-1471, `HIGH`, 1 record, line **4**.
+⛔ SKIPPED `unsupported_file_type`.
+
+Two JVM modules, different outcomes: `pom.xml` is ingested, `gradle.lockfile` is
+not. The gap is the **filename allow-list**, not the ecosystem.
+
+---
+
+## DEP-11 — Go, with no severity data at all
+
+`golang.org/x/text 0.3.8` — reported as **`GO-2026-5970`**, 1 record, `go.mod`
+line **5**. ✅ INGESTED.
+
+**The cleanest severity-fallback test in the suite.** The record has a CVE alias
+but **no GHSA alias, no CVSS vector, no GitHub severity string and no ecosystem
+severity** — so severity falls all the way through to the `MEDIUM` default.
+DEP-08 still has a `moderate` string to fall back on; this one has nothing.
+
+`go 1.27.1` is pinned to the current toolchain so no Go **stdlib** advisories
+appear. *Version choice:* 0.3.7 would add two more records; 0.3.8 gives exactly
+one.
+
+**Note:** osv-scanner v1.9.2 also attempts `govulncheck` call analysis and logs
+a non-fatal failure (its bundled Go is older than the `go` directive). The
+record is still reported.
+
+---
+
+## DEP-12 — Rust, an ID that is neither CVE nor GHSA ⛔ ingestion gap
+
+`ansi_term 0.12.1` — **`RUSTSEC-2021-0139`**, 1 record, `Cargo.lock` line **6**.
+⛔ SKIPPED `unsupported_file_type`.
+
+**This is an informational "unmaintained crate" notice, not an exploitable
+vulnerability** — the record carries
+`affected[].database_specific.informational == "unmaintained"`. It is the only
+record in the testbed with **no CVE and no GHSA**, so ARVE must key it on the
+RUSTSEC id alone and must not drop it for lacking both.
+
+Whether unmaintained-crate notices should surface as security findings is a
+product decision worth making deliberately. Every RUSTSEC advisory found without
+a CVE or GHSA alias was of this informational kind — genuine RUSTSEC
+vulnerabilities get mirrored to GHSA.
+
+**The Rust gap is total:** `Cargo.toml` is ingested and `Cargo.lock` is not, so
+the ecosystem is scanned as empty.
+
+---
+
+## DEP-13 — yarn classic lockfile
+
+`json5 2.2.1` — CVE-2022-46175, `HIGH`, 1 record, line **5**. ✅ INGESTED.
+
+*Substitution:* axios was the candidate — **29 advisories at 1.6.0, 30 at
+1.7.4**, mostly from 2026 and still climbing.
+
+---
+
+## DEP-14 — pnpm lockfile v9.0
+
+`node-fetch 2.6.0` — CVE-2022-0235 `HIGH` plus **GHSA-w7rc-rwvf-8q5r `LOW`**,
+2 records, line **34**. ✅ INGESTED.
+
+**A real risk worth testing:** osv-scanner v1.9.2 predates pnpm 9 considerably.
+Had it failed to parse lockfileVersion 9.0, the plant would have been
+undetectable for ARVE while working fine for the reference version. **Verified:
+both parse it identically.**
+
+GHSA-w7rc-rwvf-8q5r is the **only `LOW` record in the testbed** — the canonical
+severity vocabulary now gets exercised end to end.
+
+---
+
+## DEP-15 — NuGet, ingested by accident
+
+`Newtonsoft.Json 12.0.1` — CVE-2024-21907, `HIGH`, line **5**. ✅ INGESTED.
+
+**Ingested by accident, not design:** `packages.lock.json` is not in the
+filename allow-list, but `.json` is in the *extension* allow-list. That is the
+only reason NuGet works where Cargo, Poetry and Bundler do not.
+
+**⚠ Scanner-version divergence:** osv-scanner **2.5.1 reports this package
+twice** — from `packages.lock.json` *and* from `LedgerExport.csproj` — while
+**1.9.2 reports it once**. ARVE is unaffected today because `.csproj` is
+skipped, but if the allow-list ever gained `.csproj`, the same vulnerability
+would become **two** findings, since `file_path` is part of the fingerprint.
+
+---
+
+## DEP-16 — Poetry lockfile ⛔ ingestion gap
+
+`wheel 0.37.0` — CVE-2022-40898 `HIGH` + `PYSEC-2022-43017` (alias duplicate, no
+severity data), 2 records, line **4**. ⛔ SKIPPED.
+
+**Python is where ARVE's ingestion is least consistent:** `requirements.txt` ✅,
+`pyproject.toml` ✅, but `poetry.lock` and `Pipfile.lock` — the files that
+actually pin versions — ⛔.
+
+---
+
+## DEP-17 — `requirements-dev.txt` ⛔ ingestion gap (exact-name matching)
+
+`jinja2 3.1.5` — CVE-2025-27516 + `PYSEC-2026-1471`, 2 records, line **1**.
+⛔ SKIPPED.
+
+**Confirmed: osv-scanner v1.9.2 parses this filename perfectly well.** The miss
+is entirely the allow-list, which matches the exact string `requirements.txt`.
+Every `requirements-*.txt` variant — dev, test, ci, prod — is invisible, and
+splitting dev dependencies out this way is a common layout.
+
+*Version choice:* 3.1.4 gives 6 records; 3.1.5 gives 2. `markupsafe 3.0.3` is
+advisory-free.
+
+---
+
+## DEP-18 — RubyGems ⛔ ingestion gap
+
+`addressable 2.7.0` — CVE-2021-32740 + CVE-2026-35611, both `HIGH`, 2 records,
+line **4**. ⛔ SKIPPED.
+
+`public_suffix 4.0.7`, its only dependency, is advisory-free. *Packagist was
+dropped:* the best candidate found (`guzzlehttp/psr7 1.8.1`) carries 6
+advisories.
+
+---
+
+## DEP-19 — the same package version in a second lockfile ✅ positive control
+
+`minimist 1.2.0` in `apps/admin-ui/yarn.lock` line **15** — the **identical**
+package, version and advisory pair as **DEP-05** in `web/package-lock.json`.
+
+Because `file_path` **is** an input to the dependency fingerprint, these must be
+**2 findings distinct from DEP-05's 2** — four in total for one package version.
+
+This is the positive control for DEP-20: it proves the fingerprint *does*
+separate by file, which is what makes the missing version a specific defect
+rather than general collapsing.
+
+---
+
+## DEP-20 — two versions of one package in one lockfile 🔁 normalizer collapse
+
+`apps/partner-webhooks/pnpm-lock.yaml` holds **minimist 0.0.8** (pinned exactly
+by `mkdirp@0.5.1`, a genuine advisory-free parent, line **23**) and **minimist
+1.2.5** (direct, line 26).
+
+| Version | Advisory | Severity |
+|---|---|---|
+| 0.0.8 | GHSA-vh95-rmgr-6w4m | MEDIUM |
+| **0.0.8** | **GHSA-xvch-5gv4-984h** | **CRITICAL** |
+| **1.2.5** | **GHSA-xvch-5gv4-984h** | **CRITICAL** |
+
+(`vh95` is fixed in 1.2.3, so 1.2.5 carries only one.)
+
+**OSV reports 3 records. ARVE should emit 2.** The two `GHSA-xvch-5gv4-984h`
+rows differ *only* by version, and version is **not** an input to
+`SHA256(engine | dependency | package | ecosystem | vuln_id | file_path)`.
+
+This is not just a miscount. The two versions have **different fixed versions**
+and arrive by **different paths** (one direct, one through `mkdirp`), so they are
+two separate pieces of remediation work — and one of them silently disappears.
+See `ARVE_ISSUES.md` issue 4.
