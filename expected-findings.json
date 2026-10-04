@@ -2780,6 +2780,15 @@
           "file_type": "markdown",
           "ingestion": "INGESTED",
           "origin": "incidental (original build brief)"
+        },
+        {
+          "file_path": "docs/cloud-setup.md",
+          "line": 13,
+          "file_type": "markdown",
+          "ingestion": "INGESTED",
+          "origin": "planted (v1.1 Phase 4)",
+          "note": "both the example key ID and the example secret access key, in a fenced ini block, exactly as the AWS documentation prints them",
+          "secret_access_key_line": 14
         }
       ],
       "value": "the AWS documentation example access key ID (AKIA prefix + 'EXAMPLE' suffix; written out only in the files listed, not here)",
@@ -2788,7 +2797,122 @@
         "gitleaks_8_30_1": 0,
         "verified": "2026-09-22"
       },
-      "notes": "A deliberately planted occurrence in a docs file is added in Phase 4 of the v1.1 expansion and will be appended to occurrences."
+      "notes": "Five occurrences in total: four incidental (each one part of an instruction NOT to use the value) and one planted in docs/cloud-setup.md. All five are INGESTED markdown, and all five must stay silent. gitleaks allowlists AKIA values ending in EXAMPLE in its aws-access-token rule; the example secret access key is likewise allowlisted. Verified 2026-09-22 across both gitleaks versions."
+    },
+    {
+      "id": "NEG-02",
+      "engine": "gitleaks",
+      "what": "environment-variable references only - names of credentials, never values",
+      "why_it_must_not_fire": "These are the correct way to handle secrets, and they are everywhere in real code. A finding here would be a false positive on good practice, which is the fastest way to make a scanner ignored. Note the variable NAMES match planted secrets elsewhere (STRIPE_API_KEY, JWT_SIGNING_KEY, SLACK_BOT_TOKEN, ANALYTICS_API_KEY), so a rule keying on the keyword alone would fire.",
+      "occurrences": [
+        {
+          "file_path": "tools/env_check.py",
+          "file_type": "python",
+          "ingestion": "INGESTED",
+          "note": "os.environ.get(...) lookups for four credential names, plus a REQUIRED/OPTIONAL list of bare names"
+        },
+        {
+          "file_path": "apps/admin-ui/src/env.ts",
+          "file_type": "typescript",
+          "ingestion": "INGESTED",
+          "note": "import.meta.env.VITE_* references"
+        },
+        {
+          "file_path": ".github/workflows/admin-ui.yml",
+          "file_type": "github-actions-yaml",
+          "ingestion": "INGESTED",
+          "note": "${{ secrets.NPM_TOKEN }} and two more secrets expressions on env: keys"
+        }
+      ],
+      "scanner_verification": {
+        "gitleaks_8_24_2": 0,
+        "gitleaks_8_30_1": 0,
+        "verified": "2026-09-22"
+      }
+    },
+    {
+      "id": "NEG-03",
+      "engine": "gitleaks",
+      "what": "low-entropy placeholders in a sample env file",
+      "why_it_must_not_fire": "generic-api-key applies an entropy threshold of 3.5 and a stop-word allowlist. 'changeme', '<your-token-here>' and 'REPLACE_ME' suffixes are exactly what those exist for. This also guards the opposite error from SEC-07: that plant proves a HIGH-entropy value next to a keyword IS caught, this one proves a low-entropy value next to the same keyword is not.",
+      "occurrences": [
+        {
+          "file_path": "ops/scripts/env.sample.sh",
+          "file_type": "shell",
+          "ingestion": "INGESTED",
+          "note": "API_KEY=changeme, AUTH_TOKEN=\"<your-token-here>\", plus correctly-prefixed but obviously fake sk_live_REPLACE_ME and xoxb-000000000000-000000000000-REPLACE_ME values"
+        }
+      ],
+      "scanner_verification": {
+        "gitleaks_8_24_2": 0,
+        "gitleaks_8_30_1": 0,
+        "verified": "2026-09-22"
+      },
+      "notes": "The sk_live_ and xoxb- entries are the interesting half: they carry REAL vendor prefixes, so only the shape of the rest of the value stops them matching. Verified silent in both gitleaks versions."
+    },
+    {
+      "id": "NEG-04",
+      "engine": "osv",
+      "what": "a PATCHED version of a package that is planted vulnerable elsewhere",
+      "why_it_must_not_fire": "lodash 4.17.11 is DEP-03 and carries 7 advisories. lodash 4.18.1 in apps/admin-ui/yarn.lock carries none. A finding here would mean version ranges are being ignored and every lodash in the repo is being flagged by name.",
+      "occurrences": [
+        {
+          "file_path": "apps/admin-ui/yarn.lock",
+          "file_type": "yarn-lock",
+          "ingestion": "INGESTED",
+          "package_name": "lodash",
+          "package_version": "4.18.1",
+          "note": "genuine yarn resolution; published on npm 2026-04-01, resolved hash and sha512 integrity verified against the registry"
+        }
+      ],
+      "scanner_verification": {
+        "osv_1_9_2": 0,
+        "osv_2_5_1": 0,
+        "verified": "2026-09-22"
+      },
+      "notes": "The originally proposed control, lodash 4.17.21, was REJECTED during verification: it still has 3 live advisories (GHSA-f23m-r3pf-42rh, GHSA-r5fr-rjxr-66jc, GHSA-xxjr-mmjv-4gpg), so it would have been a vacuous control that silently expected findings. 4.18.1 is the current latest and returns 0."
+    },
+    {
+      "id": "NEG-05",
+      "engine": "osv",
+      "what": "a vulnerable package declared in a manifest with NO lockfile beside it",
+      "why_it_must_not_fire": "OSV-Scanner reads lockfiles, not manifests (pom.xml aside). apps/status-page/package.json pins lodash 4.17.11 - the exact version planted as DEP-03, with 7 advisories - and there is no package-lock.json, yarn.lock or pnpm-lock.yaml in that directory, so nothing is reported.",
+      "occurrences": [
+        {
+          "file_path": "apps/status-page/package.json",
+          "file_type": "npm-manifest",
+          "ingestion": "INGESTED",
+          "package_name": "lodash",
+          "package_version": "4.17.11",
+          "note": "manifest only; no lockfile in apps/status-page/"
+        }
+      ],
+      "scanner_verification": {
+        "osv_1_9_2": 0,
+        "osv_2_5_1": 0,
+        "verified": "2026-09-22"
+      },
+      "notes": "This is the negative counterpart of DEP-04, which is reachable ONLY through a lockfile. Together they show that lockfile presence, not manifest content, decides what OSV reports. It also documents a real blind spot: a project without a committed lockfile gets no dependency findings at all, however old its pins are."
+    },
+    {
+      "id": "NEG-06",
+      "engine": "gitleaks",
+      "what": "a sha256 checksum sitting next to the word 'hash'",
+      "why_it_must_not_fire": "A 64-character hex string is high-entropy and sits next to credential-adjacent words, which is the shape generic-api-key hunts for. Checksums are extremely common in release tooling, so firing here would be a high-volume false positive.",
+      "occurrences": [
+        {
+          "file_path": "ops/scripts/verify_artifact.sh",
+          "file_type": "shell",
+          "ingestion": "INGESTED",
+          "note": "ARTIFACT_HASH=\"<64 hex chars>\" plus EXPECTED_HASH_ALGO and a sha256sum comparison"
+        }
+      ],
+      "scanner_verification": {
+        "gitleaks_8_24_2": 0,
+        "gitleaks_8_30_1": 0,
+        "verified": "2026-09-22"
+      },
+      "notes": "Result: SILENT in both versions. 'hash' is not in generic-api-key's keyword list (access, auth, api, credential, creds, key, passwd, password, secret, token), so the value is never considered. That is precision by luck of vocabulary rather than by understanding - renaming the variable to ARTIFACT_KEY would likely fire. Recorded either way, as the brief intended."
     }
   ],
   "known_false_positives": [],

@@ -1566,3 +1566,122 @@ This is not just a miscount. The two versions have **different fixed versions**
 and arrive by **different paths** (one direct, one through `mkdirp`), so they are
 two separate pieces of remediation work — and one of them silently disappears.
 See `ARVE_ISSUES.md` issue 4.
+
+---
+
+# Group E — Negative controls (`NEG-01` …)
+
+**These must produce zero findings.** They exist to measure precision, which
+recall-only testing misses entirely: a scanner that reports everything scores
+100% recall and is useless.
+
+All six are **INGESTED**, so they are inside ARVE's view — they test the
+scanners and the normalizer, not the filter. Verified 2026-09-22 against all
+four scanner versions. `known_false_positives` is **empty**: nothing fired.
+
+| ID | What | Where | Result |
+|---|---|---|---|
+| NEG-01 | AWS documentation example keys | 5 files | ✅ silent |
+| NEG-02 | env-var references, no values | 3 files | ✅ silent |
+| NEG-03 | low-entropy placeholders | `ops/scripts/env.sample.sh` | ✅ silent |
+| NEG-04 | a **patched** lodash | `apps/admin-ui/yarn.lock` | ✅ silent |
+| NEG-05 | vulnerable pin, **no lockfile** | `apps/status-page/package.json` | ✅ silent |
+| NEG-06 | sha256 checksum near "hash" | `ops/scripts/verify_artifact.sh` | ✅ silent |
+
+---
+
+## NEG-01 — the AWS documentation example keys
+
+Gitleaks allowlists `AKIA…EXAMPLE` values in its `aws-access-token` rule. The
+value appears **five** times in this repository:
+
+| File | Line | Origin |
+|---|---|---|
+| `PROJECT_CONTEXT.md` | 208 | incidental — the rule saying never to use it |
+| `plan.md` | 28 | incidental |
+| `KICKSTART_PROMPT.md` | 40 | incidental |
+| `NEW_PROJECT_START_README.md` | 315 | incidental |
+| **`docs/cloud-setup.md`** | **13–14** | **planted** — key ID *and* secret access key in a fenced ini block |
+
+All five are ingested markdown and all five must stay silent. Contrast
+**SEC-02**, a *synthetic* AWS key that uses the real base32 alphabet and **is**
+detected — the difference is the allowlist, not the shape.
+
+---
+
+## NEG-02 — environment-variable references
+
+`tools/env_check.py`, `apps/admin-ui/src/env.ts` and
+`.github/workflows/admin-ui.yml` reference credentials by **name** only:
+`os.environ.get("STRIPE_API_KEY")`, `import.meta.env.VITE_GITLAB_TOKEN`,
+`${{ secrets.NPM_TOKEN }}`.
+
+**Why this is a real test:** the variable names deliberately match planted
+secrets elsewhere in the repo — `STRIPE_API_KEY` (SEC-01), `JWT_SIGNING_KEY`
+(SEC-05), `SLACK_BOT_TOKEN` (SEC-16), `ANALYTICS_API_KEY` (SEC-23). A rule
+keying on the keyword rather than the value fires here. Neither version does.
+
+This is also the *correct* way to handle secrets, and it is everywhere in real
+code. False positives on good practice are the fastest route to a tool being
+ignored.
+
+---
+
+## NEG-03 — low-entropy placeholders
+
+`ops/scripts/env.sample.sh` holds `API_KEY=changeme`,
+`AUTH_TOKEN="<your-token-here>"`, and — more interestingly — two values with
+**real vendor prefixes**: `sk_live_REPLACE_ME` and
+`xoxb-000000000000-000000000000-REPLACE_ME`.
+
+Only the shape of the remainder stops those matching. This is the exact
+counterpart of **SEC-07**: that plant proves a *high*-entropy value next to a
+credential keyword is caught; this proves a *low*-entropy one next to the same
+keyword is not.
+
+---
+
+## NEG-04 — a patched version of a planted package
+
+`lodash 4.18.1` in `apps/admin-ui/yarn.lock`, against `lodash 4.17.11` (DEP-03,
+7 advisories) in `web/package-lock.json`. A finding here would mean version
+ranges are ignored and packages are flagged by name.
+
+> **The originally proposed control was rejected during verification.**
+> `lodash 4.17.21` — the usual "safe" lodash — **still carries 3 live
+> advisories** (GHSA-f23m-r3pf-42rh, GHSA-r5fr-rjxr-66jc, GHSA-xxjr-mmjv-4gpg).
+> It would have been a vacuous control that quietly expected findings. 4.18.1 is
+> the current latest, published 2026-04-01, and returns **0**. Its `resolved`
+> hash and `integrity` were checked against the npm registry to confirm the
+> lockfile is genuine resolution rather than a hand-edited version bump.
+
+---
+
+## NEG-05 — a vulnerable pin with no lockfile
+
+`apps/status-page/package.json` pins **`lodash 4.17.11`** — the exact version
+planted as DEP-03, with 7 advisories — and there is **no lockfile** in that
+directory. OSV reports nothing.
+
+This is the negative counterpart of **DEP-04**, which is reachable *only*
+through a lockfile. Together they show that lockfile presence, not manifest
+content, decides what OSV sees.
+
+It also documents a genuine blind spot worth stating plainly: **a project with
+no committed lockfile gets no dependency findings at all**, however old its pins
+are.
+
+---
+
+## NEG-06 — a checksum next to the word "hash"
+
+`ops/scripts/verify_artifact.sh` holds
+`ARTIFACT_HASH="9f86d081…b0f00a08"` — 64 hex characters, high entropy, beside
+`EXPECTED_HASH_ALGO`. Checksums are everywhere in release tooling.
+
+**Result: silent in both versions** — but for a shallow reason worth recording.
+`hash` is **not** in `generic-api-key`'s keyword list (`access`, `auth`, `api`,
+`credential`, `creds`, `key`, `passwd`, `password`, `secret`, `token`), so the
+value is never considered at all. That is precision by vocabulary, not by
+understanding: renaming the variable to `ARTIFACT_KEY` would likely fire on a
+value that is not a credential.
