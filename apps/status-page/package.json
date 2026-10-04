@@ -1,0 +1,12 @@
+{
+  "name": "status-page",
+  "version": "0.2.0",
+  "private": true,
+  "description": "Static status page. No build step and no lockfile: the dependency below is only used by the optional local preview script.",
+  "scripts": {
+    "preview": "python -m http.server 4173"
+  },
+  "dependencies": {
+    "lodash": "4.17.11"
+  }
+}
