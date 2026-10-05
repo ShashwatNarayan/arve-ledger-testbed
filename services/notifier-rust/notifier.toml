@@ -11,7 +11,7 @@ endpoint = "https://metric-api.eu.newrelic.com/metric/v1"
 flush_interval_seconds = 30
 # Ingest key for the notifier's own metrics.
 # TESTBED SEC-27 - intentional, see EXPECTED_FINDINGS.md
-newrelic_api_key = "NRAK-H9XVG7SPVF2OGACWZIPJV1TVC22"
+newrelic_api_key = "NRAK-1X99GXMZK6HIOLO59CAANBPF5JG"
 
 [retry]
 max_attempts = 5
