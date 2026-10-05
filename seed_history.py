@@ -598,7 +598,25 @@ STAMPED_FILES = [
     "EXPECTED_FINDINGS.md",
     "expected-findings.json",
     "README_TEAM.md",
-    "gitleaks-baseline.json",
+]
+
+# gitleaks-baseline.json is deliberately NOT stamped. It is a generated report,
+# and in `git` mode every finding carries the commit it was found in, so after a
+# rebuild its hashes are stale by definition. Rewriting them would be a lie about
+# which run produced the file. Regenerate the baselines after a rebuild instead:
+#
+#     python scripts/verify_plants.py      # confirm the plants still line up
+#
+# and re-run whatever produced the baselines. The same applies to
+# arve-simulated-baseline.json.
+GENERATED_NOT_STAMPED = ["gitleaks-baseline.json", "osv-baseline.json",
+                         "arve-simulated-baseline.json"]
+
+# Commit hashes the answer keys quote as a statement about the PAST rather than
+# as a pointer into the current branch. A rebuild is expected to orphan these.
+HISTORICAL_REFERENCES = [
+    # tooling_notes: where the backspace bug in this script was introduced
+    "b8333656",
 ]
 
 
@@ -1007,16 +1025,33 @@ def main():
         if path.exists():
             quoted |= set(re.findall(r"\b[0-9a-f]{7,40}\b",
                                      path.read_text(encoding="utf-8")))
+    # Hashes the answer keys quote ON PURPOSE as history rather than as a live
+    # reference: they describe the pre-rebuild repository and are expected to
+    # stop being ancestors once the history is rebuilt.
+    historical = set(re.findall(r"\b[0-9a-f]{7,40}\b",
+                                " ".join(HISTORICAL_REFERENCES)))
     stale = []
     for h in quoted:
+        if h in historical or any(ref.startswith(h) or h.startswith(ref)
+                                  for ref in historical):
+            continue
         if _subject(h) is None:
             continue  # not a commit at all, just a hex string
         r = subprocess.run(["git", "merge-base", "--is-ancestor", h, "HEAD"],
                            cwd=REPO, capture_output=True)
         if r.returncode:
             stale.append(h)
-    assert not stale, f"answer key quotes commits not on this branch: {stale}"
-    print(f"  ok  all {len(quoted)} quoted commit references are ancestors of HEAD")
+    assert not stale, (
+        "answer key quotes commits that are not on this branch: "
+        f"{sorted(stale)}\n"
+        "If the history was just rebuilt, these are references the stamper could "
+        "not map back to a commit message. Fix the reference or add it to "
+        "HISTORICAL_REFERENCES if it deliberately points at the old history.")
+    print(f"  ok  all {len(quoted) - len(historical & quoted)} live commit references "
+          "are ancestors of HEAD")
+    if GENERATED_NOT_STAMPED:
+        print("  note the baselines record the commits of the run that produced them;"
+              "\n       regenerate them after a rebuild rather than stamping them")
 
     count = len(git("log", "--oneline").stdout.strip().splitlines())
     print(f"  ok  {count} commits on main")
