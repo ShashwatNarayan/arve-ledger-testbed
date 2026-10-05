@@ -1286,14 +1286,27 @@
         "what_was_planted": "New Relic ingest key in the notifier's TOML config, rotated in place in a later commit.",
         "additional_locations": [],
         "history_extra_findings": 1,
-        "history_extra_note": "gitleaks git also reports the PRE-rotation value at the same file and line in the earlier commit; hashes are stamped in Phase 5"
+        "history_extra_note": "gitleaks git also reports the PRE-rotation value at the same file and line in the earlier commit; hashes are stamped in Phase 5",
+        "history": {
+          "introduced_commit": "471c68d2",
+          "introduced_message": "add notifier service config",
+          "introduced_value": "pre-rotation key, derived from a fixed seed by seed_history.py; never present at HEAD",
+          "rotated_commit": "b24991a2",
+          "rotated_message": "rotate the notifier telemetry ingest key",
+          "rotated_to_line": 14,
+          "line_changed": false,
+          "secret_value_changed": true,
+          "present_at_head": true,
+          "working_tree_scan_finds": "1 finding (the post-rotation value)",
+          "history_scan_finds": "2 findings, both at line 14, distinguished only by commit"
+        }
       },
       "scanner_verification": {
         "gitleaks_8_24_2": true,
         "gitleaks_8_30_1": true,
         "mode": "dir",
         "verified": "2026-09-22",
-        "note": "HEAD value detected by both versions at line 14 column 2; the pre-rotation value is verified in Phase 5 once the rotation commit exists"
+        "note": "HEAD value detected by both versions at line 14 column 2 (dir mode). Git mode verified 2026-09-22: BOTH versions report 2 findings for this file, at line 14 in commits 471c68d2 and b24991a2, with different gitleaks fingerprints because git-mode fingerprints include the commit. In dir mode there is one finding and its fingerprint is identical before and after the rotation."
       },
       "arve_pipeline": {
         "ingestion": "INGESTED",
@@ -3402,5 +3415,21 @@
   "expected_osv_record_count_by_scanner": {
     "osv_1_9_2": 49,
     "osv_2_5_1": 50
-  }
+  },
+  "tooling_notes": [
+    {
+      "date": "2026-09-22",
+      "component": "seed_history.py",
+      "issue": "stamp_commit_references() could never rewrite a stale commit hash",
+      "detail": "The substitution pattern contained two literal BACKSPACE bytes (0x08) where the source should have read backslash-b (a regex word boundary): re.sub(r'<BS>[0-9a-f]{7,40}<BS>', ...). A terminal erases the preceding character when it prints a backspace, so every listing of the file - including inspect.getsource - displayed a correct-looking pattern. The regex matched nothing, so the rewrite loop found no changes and the function returned False while still printing the mappings it had computed. Present since the original build (commit b8333656) and never noticed, because the rewrite path only runs when a quoted hash actually changes, which never happened until SEC-27 introduced hashes that move on every rebuild. Fixed 2026-09-22; the rebuild now stamps SEC-27's two commits correctly.",
+      "how_it_was_found": "a scratch-clone rebuild failed its own final assertion: the answer key still quoted commits that were not ancestors of HEAD"
+    },
+    {
+      "date": "2026-09-22",
+      "component": "seed_history.py",
+      "issue": "what a --force rebuild does and does not reproduce",
+      "detail": "VERIFIED by rebuilding a scratch clone and diffing: commits 1-10 come out BYTE-IDENTICAL, which covers every commit hash this answer key quotes for SEC-04 (5f9ec864, 5c1f6a8f) and SEC-06 (4da4e7e2, dc9a9d69) as well as the baseline commits 599397be and 93db3f27. Commits 11 onward stage files this project keeps editing (both answer keys, the baselines, seed_history.py), so their hashes follow the current content and DO change; SEC-27's two commits sit in that range and are re-stamped automatically. Two things are load-bearing for the 1-10 guarantee: core.autocrlf is pinned to 'input' by the script, and README.md - which is committed in commit 1 - is embedded as README_V1 rather than read from the working tree.",
+      "how_it_was_found": "Phase 0 sensitivity testing: editing README.md changed every hash, as did running with core.autocrlf=false"
+    }
+  ]
 }

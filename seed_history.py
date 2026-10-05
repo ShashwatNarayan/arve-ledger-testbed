@@ -7,8 +7,8 @@ script reconstructs that sequence deterministically.
 
 What it produces
 ----------------
-Eleven commits whose messages read like ordinary development. Two of them matter
-structurally:
+The original thirteen commits, followed by the v1.1 expansion commits. Three of
+them matter structurally:
 
   * **SEC-04** (an SFTP password in ``backend/app/settlement.py``) is added in
     commit 4 and deleted in commit 8. At ``HEAD`` the file does not exist, so a
@@ -19,6 +19,32 @@ structurally:
     refactor in commit 7. The secret *value* never changes, which is the point:
     a fingerprint that includes the line number will wrongly report the finding
     as RESOLVED and then REOPENED.
+
+  * **SEC-27** (the New Relic ingest key in
+    ``services/notifier-rust/notifier.toml``) is introduced with one value and
+    *rotated in place* by a later commit -- same file, same line, new value.
+    A history scan reports two findings; a HEAD-only scan reports one and never
+    sees the rotation at all.
+
+What is guaranteed to be reproducible
+-------------------------------------
+**Commits 1-10 come out byte-identical on every rebuild**, which is what
+matters: every commit hash quoted in the answer keys (SEC-04's add/delete and
+SEC-06's introduce/move) lives in that range. Two things are load-bearing for
+that guarantee and are handled below:
+
+  * ``core.autocrlf`` is pinned to ``input`` on the rebuilt repository, because
+    the blobs -- and therefore the hashes -- otherwise depend on the machine's
+    global Git configuration.
+  * ``README.md`` is committed in commit 1, so the *original* commit-1 blob is
+    embedded below as ``README_V1`` rather than read from the working tree.
+    Without that, any later edit to ``README.md`` would silently change commit 1
+    and every hash after it.
+
+Commits 11 onward stage files that this project keeps editing (the two answer
+keys, the baselines, this script), so their hashes follow the current content
+and are *not* stable across content changes. No answer-key hash depends on them,
+and ``stamp_commit_references()`` rewrites the SEC-27 references after a rebuild.
 
 How it works
 ------------
@@ -72,10 +98,18 @@ REPO = Path(__file__).resolve().parent
 # it is plain text. It is avoidance of a second, unintended plant.
 SEC04_SEED = "arve-ledger-testbed/SEC-04/settlement-sftp-service-account"
 
+# SEC-27 is the same problem in a different shape. The PRE-ROTATION value must
+# exist only inside the commits before the rotation: if it were a literal here
+# it would sit at HEAD, and the finding this plant creates -- "the old key is
+# reachable only through history" -- would be destroyed by this script. The
+# post-rotation value is a normal planted secret and is read from the working
+# tree, so the two can never drift apart.
+SEC27_SEED = "arve-ledger-testbed/SEC-27/notifier-newrelic-ingest-pre-rotation"
 
-def derive_secret(seed, length=28):
-    """Deterministically expand a seed into a high-entropy alphanumeric string."""
-    alphabet = string.ascii_letters + string.digits
+
+def derive_secret(seed, length=28, alphabet=None):
+    """Deterministically expand a seed into a high-entropy string."""
+    alphabet = alphabet or (string.ascii_letters + string.digits)
     out = []
     counter = 0
     while len(out) < length:
@@ -83,6 +117,11 @@ def derive_secret(seed, length=28):
         out.extend(alphabet[b % len(alphabet)] for b in block)
         counter += 1
     return "".join(out[:length])
+
+
+def derive_sec27():
+    """The pre-rotation New Relic key: NRAK- plus 27 upper-case alphanumerics."""
+    return "NRAK-" + derive_secret(SEC27_SEED, 27, string.ascii_uppercase + string.digits)
 
 # Commits are dated backwards from this point so `git log` looks like work done
 # over a few weeks rather than all in one second.
@@ -95,6 +134,158 @@ AUTHOR_EMAIL = os.environ.get("SEED_AUTHOR_EMAIL", "shashwatn2802@gmail.com")
 # ---------------------------------------------------------------------------
 # Embedded file versions that differ from HEAD
 # ---------------------------------------------------------------------------
+
+# README.md is committed in COMMIT 1, so the commit-1 blob is pinned here rather
+# than read from the working tree. Editing README.md at HEAD would otherwise
+# change commit 1 and, with it, every commit hash the answer keys quote.
+# The current README.md is restored at its proper commit further down.
+README_V1 = '''# arve-ledger-testbed
+
+> # ⚠️ THIS REPOSITORY IS INTENTIONALLY VULNERABLE
+>
+> It contains **deliberately planted hardcoded secrets and knowingly vulnerable
+> dependencies**. They are the point of the repository, not accidents.
+>
+> - **Never deploy this.** Not to production, not to staging, not to a laptop
+>   exposed to a network.
+> - **Never use it as a reference implementation.** Nothing here is an example
+>   of how to build a payments system.
+> - **Every credential in this repository is synthetic and non-functional.**
+>   Each one is randomly generated with the correct *shape* so that scanners
+>   match it, and is valid for no real service. Nothing here has ever been a
+>   live credential.
+> - The planted flaws are catalogued in
+>   [`EXPECTED_FINDINGS.md`](EXPECTED_FINDINGS.md).
+>
+> **Evaluating a scanner against this repo? Start with
+> [`README_TEAM.md`](README_TEAM.md)** — it explains what is planted, where, how
+> to scan for it, and how to score the results.
+
+## Why this exists
+
+This is a test fixture for **ARVE**, an AI-assisted security code discovery
+engine. ARVE ingests a Git repository, runs real open-source scanners against it
+in a locked-down Docker sandbox, and normalizes every scanner's output into one
+canonical finding format so results can be correlated, prioritized, and
+explained. Its founding rule is *tools find the evidence, AI only explains the
+evidence* — a language model is never asked whether code is insecure.
+
+Evaluating that pipeline requires a repository whose answers are already known.
+This is that repository. It carries **17 planted findings** whose exact
+locations, severities and advisory identifiers are recorded up front, so ARVE's
+output can be diffed against ground truth rather than eyeballed.
+
+Two scanners are currently integrated, and the planted flaws are scoped to
+exactly what they can detect:
+
+| Engine | Detects | Findings here |
+|---|---|---|
+| **Gitleaks** | Hardcoded secrets, in the working tree **and in Git history** | `SEC-01` … `SEC-09` |
+| **OSV-Scanner** | Dependencies with published advisories, read from lockfiles | `DEP-01` … `DEP-08` |
+
+There is deliberately **no SQL injection, XSS, path traversal, SSRF, or broken
+access control** here. Those need SAST (Semgrep), which is not wired into ARVE
+yet, so planting them would test nothing.
+
+## What the application does
+
+A minimal double-entry payments ledger. Seven endpoints, SQLite, no auth system.
+The application is kept trivially simple on purpose — the complexity budget
+belongs to the vulnerability matrix, not the architecture.
+
+| Method | Path | Purpose |
+|---|---|---|
+| `POST` | `/accounts` | Create an account |
+| `POST` | `/accounts/{id}/deposit` | Deposit funds |
+| `POST` | `/accounts/{id}/withdraw` | Withdraw funds |
+| `POST` | `/transfers` | Transfer between accounts (writes debit + credit rows) |
+| `GET` | `/accounts/{id}/balance` | Get an account balance |
+| `GET` | `/accounts/{id}/transactions` | List an account's transactions |
+| `POST` | `/webhooks/provider` | Receive a provider webhook, verify its HMAC signature |
+
+Balances are never stored; they are derived by summing ledger entries. Amounts
+are integer minor units (cents) throughout — no floats.
+
+## Running the backend
+
+Requires Python 3.11+.
+
+```bash
+python -m venv .venv
+.venv/Scripts/activate          # Windows
+# source .venv/bin/activate     # macOS / Linux
+
+pip install -r backend/requirements.txt
+
+cd backend
+uvicorn app.main:app --reload
+```
+
+The API is then at <http://127.0.0.1:8000>, with interactive docs at
+<http://127.0.0.1:8000/docs>.
+
+> `backend/requirements.txt` pins **deliberately outdated packages**. That is
+> intentional — see `DEP-01` and `DEP-02` in the findings catalogue. Do not
+> "fix" the pins; doing so silently destroys the test fixture.
+
+## Running the web console
+
+The `web/` directory is a single static page that calls two of the endpoints. It
+exists mainly so the repository has a **second package ecosystem with its own
+lockfile at a nested path**, which tests whether a scanner recurses properly
+instead of only checking the repository root.
+
+```bash
+cd web
+npm install     # installs deliberately vulnerable packages - see DEP-03..DEP-08
+npm start       # serves the page and proxies /api/* to the backend
+```
+
+Then open <http://127.0.0.1:5173>. Start the backend first, or the proxy will
+return `502 upstream unreachable`.
+
+## Repository layout
+
+```
+.
+├── README.md                     you are here
+├── README_TEAM.md                start here if you are evaluating a scanner
+├── EXPECTED_FINDINGS.md          the answer key, human-readable
+├── expected-findings.json        the answer key, machine-readable
+├── plan.md                       how this testbed was built
+├── seed_history.py               reproduces the planted commit history
+├── .env.example
+├── .github/workflows/deploy.yml
+├── docs/runbook.md
+├── backend/
+│   ├── requirements.in           direct dependencies
+│   ├── requirements.txt          compiled lockfile (DEP-01, DEP-02)
+│   ├── keys/webhook_signing.pem
+│   ├── app/                      main, config, models, ledger, api, webhooks
+│   └── tests/conftest.py
+└── web/
+    ├── package.json
+    ├── package-lock.json         DEP-03 .. DEP-08
+    ├── dev-server.js             static server + /api proxy
+    ├── index.html
+    └── src/main.js
+```
+
+## A note on the Git history
+
+Some findings exist **only in history** and are absent from the working tree, so
+that history scanning is exercised rather than just a filesystem walk. The
+commit sequence is reproducible via `seed_history.py`. Commit messages read like
+ordinary development on purpose — the history is meant to look like real work,
+not like a test fixture.
+
+## Reporting
+
+If you found this repository outside its intended context and are wondering
+whether to report the leaked credentials in it: **you don't need to.** They are
+fake, documented, and deliberate. Start with
+[`EXPECTED_FINDINGS.md`](EXPECTED_FINDINGS.md).
+'''
 
 # backend/app/config.py as it stood before the credentials were hardcoded.
 # Commit 1 gets this; commit 9 replaces it with the version carrying SEC-01,
@@ -330,7 +521,14 @@ def commit(index, message, when):
 
 def add(*paths):
     for path in paths:
-        git("add", "--", path)
+        git("add", "--all", "--", path)
+
+
+def staged():
+    """True when the index differs from HEAD, i.e. there is something to commit."""
+    result = subprocess.run(["git", "diff", "--cached", "--quiet"], cwd=REPO,
+                            capture_output=True)
+    return result.returncode != 0
 
 
 def write(relative_path, content):
@@ -341,6 +539,14 @@ def write(relative_path, content):
 
 def read(relative_path):
     return (REPO / relative_path).read_text(encoding="utf-8")
+
+
+def extract_toml_value(text, key):
+    """Return the quoted value of `key = "..."` from a TOML file."""
+    match = re.search(rf'^\s*{re.escape(key)}\s*=\s*"([^"]+)"', text, re.MULTILINE)
+    if not match:
+        raise SystemExit(f"could not find {key} in the TOML file")
+    return match.group(1)
 
 
 def extract_secret(text, marker):
@@ -381,6 +587,11 @@ ANCHORS = [
     "hoist webhook module constants to the top of the file",
     "use staging credentials as local fallbacks",
     "add deploy workflow and on-call runbook",
+    # v1.1: SEC-27's two commits. Unlike the anchors above these are NOT stable
+    # across rebuilds, because they sit after commits that stage the answer keys
+    # -- which is exactly why they are stamped rather than written by hand.
+    "add notifier service config",
+    "rotate the notifier telemetry ingest key",
 ]
 
 STAMPED_FILES = [
@@ -434,7 +645,7 @@ def stamp_commit_references():
         # Substitute WHOLE tokens only. A plain str.replace would rewrite the
         # 7-char prefix inside a 40-char hash and produce a hybrid that points
         # at no commit at all.
-        text = re.sub(r"[0-9a-f]{7,40}",
+        text = re.sub(r"\b[0-9a-f]{7,40}\b",
                       lambda m: replacements.get(m.group(0), m.group(0)),
                       original)
         if text != original:
@@ -471,6 +682,8 @@ def main():
     # works from a fresh clone where only HEAD exists.
     final_config = read("backend/app/config.py")
     final_webhooks = read("backend/app/webhooks.py")
+    final_readme = read("README.md")
+    final_notifier = read("services/notifier-rust/notifier.toml")
 
     # SEC-04 is derived, never stored here. SEC-06 legitimately lives at HEAD,
     # so it is read back out of the working tree -- that keeps the planted value
@@ -487,6 +700,19 @@ def main():
 
     if webhooks_v1 == final_webhooks:
         raise SystemExit("webhooks v1 is identical to HEAD -- SEC-06 would not move")
+
+    # SEC-27: same idea as SEC-04. The pre-rotation value is derived, the
+    # post-rotation value is read from the working tree, and notifier v1 is the
+    # HEAD file with the one value swapped back.
+    sec27_old = derive_sec27()
+    sec27_new = extract_toml_value(final_notifier, "newrelic_api_key")
+    if not sec27_new.startswith("NRAK-"):
+        raise SystemExit(f"SEC-27 value at HEAD looks wrong: {sec27_new[:5]!r}...")
+    if sec27_old == sec27_new:
+        raise SystemExit("SEC-27 pre- and post-rotation values are identical")
+    notifier_v1 = final_notifier.replace(sec27_new, sec27_old)
+    if notifier_v1 == final_notifier:
+        raise SystemExit("SEC-27 rotation would be a no-op")
 
     # Remotes live inside .git, which is about to be deleted. Save them so a
     # rebuild does not silently detach this repo from GitHub.
@@ -507,6 +733,13 @@ def main():
     git("init", "--quiet", "--initial-branch=main")
     git("config", "user.name", AUTHOR_NAME)
     git("config", "user.email", AUTHOR_EMAIL)
+    # Load-bearing for reproducibility: with core.autocrlf=true (the Git for
+    # Windows default) the working tree holds CRLF and blobs are normalised on
+    # the way in; with it false, CRLF would be committed verbatim and every
+    # hash would change. Pinning `input` normalises on commit and never
+    # converts on checkout, so the blobs -- and the hashes -- are the same on
+    # every platform regardless of the machine's global configuration.
+    git("config", "core.autocrlf", "input")
 
     at = FIRST_COMMIT_AT
     step = 0
@@ -521,6 +754,7 @@ def main():
 
     # 1 -- clean skeleton, no planted findings
     write("backend/app/config.py", CONFIG_V1)
+    write("README.md", README_V1)
     add(".gitignore", "README.md",
         "backend/app/__init__.py", "backend/app/config.py", "backend/app/models.py")
     i, when = nxt(0, 0)
@@ -590,11 +824,129 @@ def main():
         i, when = nxt(2, 1)
         commit(i, "add reference scanner baselines for gitleaks and osv-scanner", when)
 
-    # 13 -- handover guide for whoever evaluates a scanner against this repo
+    # 13 -- handover guide for whoever evaluates a scanner against this repo.
+    # The current README.md is restored here: commit 1 carries README_V1, so any
+    # later edit to the README lands in this commit rather than rewriting the
+    # hashes the answer keys quote.
     if (REPO / "README_TEAM.md").exists():
+        write("README.md", final_readme)
         add("README_TEAM.md", "README.md")
         i, when = nxt(1, 4)
         commit(i, "add evaluation guide for the scanner team", when)
+
+    # ---- v1.1 expansion ---------------------------------------------------
+    # Everything below was APPENDED after the thirteen commits above; none of
+    # them was rewritten. The sequence mirrors the commits made while planting,
+    # so a rebuilt repository tells the same story as the live one.
+    #
+    # Only notifier.toml needs a version that differs from HEAD (SEC-27's
+    # pre-rotation value); everything else is staged straight from the working
+    # tree. A step whose paths are all missing, or that stages nothing new, is
+    # skipped rather than committed empty -- that keeps the script usable on a
+    # checkout where the v1.1 files have not been created yet.
+    write("services/notifier-rust/notifier.toml", notifier_v1)
+
+    v11 = [
+        ("2026-09-22T22:58:22", "record how the ingestion filter sees each planted finding",
+         ["PROJECT_CONTEXT.md", "scripts/arve_filter_mirror.py"]),
+        ("2026-09-22T23:00:28", "write up the four pipeline gaps the testbed exposes",
+         ["ARVE_ISSUES.md"]),
+        ("2026-09-23T09:12:00", "add settlement service skeleton",
+         ["services/settlement-java/src"]),
+        ("2026-09-23T14:40:00", "add public status page",
+         ["apps/status-page/index.html", "apps/status-page/styles.css"]),
+        ("2026-09-24T10:05:00", "add admin console deploy status widget",
+         ["apps/admin-ui/.npmrc", "apps/admin-ui/public", "apps/admin-ui/src/analyticsClient.js",
+          "apps/admin-ui/src/deployStatus.ts"]),
+        ("2026-09-24T16:20:00", "send console usage events to the analytics collector",
+         ["ops/k8s/admin-ui-config.yaml", "tools/analytics_export.py"]),
+        ("2026-09-25T11:30:00", "add settlement reconciler service",
+         ["services/reconciler-go/main.go"]),
+        ("2026-09-25T18:02:00", "add container image and cluster manifests",
+         ["ops/Dockerfile", "ops/k8s/secrets.yaml"]),
+        ("2026-09-26T09:45:00", "manage terraform cloud workspaces from the repo",
+         ["ops/terraform"]),
+        ("2026-09-26T15:15:00", "add nightly merchant catalogue backup",
+         ["ops/scripts/backup.sh"]),
+        ("2026-09-27T12:00:00", "add library release publish script",
+         ["ops/build/publish.sh"]),
+        ("2026-09-27T17:30:00", "add local database seed and merchant export fixture",
+         ["db"]),
+        ("2026-09-28T10:20:00", "add staging key sync helper",
+         ["tools/sync_keys.py"]),
+        # SEC-27 enters here carrying its PRE-ROTATION value.
+        ("2026-09-28T14:55:00", "add notifier service config",
+         ["services/notifier-rust/notifier.toml"]),
+        ("2026-09-28T19:10:00", "document the new secret plants in the answer key",
+         ["EXPECTED_FINDINGS.md", "expected-findings.json"]),
+        ("2026-09-29T09:30:00", "pin settlement service dependencies",
+         ["services/settlement-java/pom.xml"]),
+        ("2026-09-29T13:10:00", "add payout scheduler module",
+         ["services/payout-scheduler"]),
+        ("2026-09-29T17:45:00", "pin reconciler dependencies",
+         ["services/reconciler-go/go.mod", "services/reconciler-go/go.sum"]),
+        ("2026-09-30T10:15:00", "add notifier crate and lockfile",
+         ["services/notifier-rust/Cargo.toml", "services/notifier-rust/Cargo.lock",
+          "services/notifier-rust/src"]),
+        ("2026-09-30T15:20:00", "pin admin console dependencies",
+         ["apps/admin-ui/package.json", "apps/admin-ui/yarn.lock", "apps/admin-ui/src/settings.ts"]),
+        ("2026-10-01T09:40:00", "add partner webhook fan-out service",
+         ["apps/partner-webhooks"]),
+        ("2026-10-01T14:25:00", "add dotnet ledger export tool",
+         ["services/ledger-export-dotnet"]),
+        ("2026-10-01T18:05:00", "add developer tooling dependencies",
+         ["tools/pyproject.toml", "tools/poetry.lock", "tools/requirements-dev.in",
+          "tools/requirements-dev.txt"]),
+        ("2026-10-02T11:00:00", "add merchant portal skeleton",
+         ["apps/merchant-portal"]),
+        ("2026-10-02T16:30:00", "document the new dependency plants in the answer key",
+         ["EXPECTED_FINDINGS.md", "expected-findings.json"]),
+        ("2026-10-03T09:15:00", "add cloud account setup notes",
+         ["docs/cloud-setup.md"]),
+        ("2026-10-03T11:40:00", "check required environment variables at startup",
+         ["tools/env_check.py", "apps/admin-ui/src/env.ts"]),
+        ("2026-10-03T15:05:00", "build the admin console in CI",
+         [".github/workflows/admin-ui.yml"]),
+        ("2026-10-04T10:30:00", "add sample env file and artifact verification script",
+         ["ops/scripts/env.sample.sh", "ops/scripts/verify_artifact.sh"]),
+        ("2026-10-04T14:50:00", "add status page preview script",
+         ["apps/status-page/package.json"]),
+        ("2026-10-04T18:20:00", "record the negative controls in the answer key",
+         ["EXPECTED_FINDINGS.md", "expected-findings.json"]),
+    ]
+
+    for stamp, message, paths in v11:
+        present = [p for p in paths if (REPO / p).exists()]
+        if not present:
+            continue
+        add(*present)
+        if not staged():
+            continue
+        step += 1
+        commit(step, message, datetime.fromisoformat(stamp).replace(tzinfo=timezone.utc))
+
+    # SEC-27's rotation: same file, same line, new value, its own commit.
+    if (REPO / "services/notifier-rust/notifier.toml").exists():
+        write("services/notifier-rust/notifier.toml", final_notifier)
+        add("services/notifier-rust/notifier.toml")
+        if staged():
+            step += 1
+            commit(step, "rotate the notifier telemetry ingest key",
+                   datetime(2026, 10, 5, 9, 25, tzinfo=timezone.utc))
+
+    # Anything produced after the plants -- verification tooling, regenerated
+    # baselines, refreshed docs -- lands in one final commit.
+    tail = ["scripts/verify_plants.py", "gitleaks-baseline.json", "osv-baseline.json",
+            "arve-simulated-baseline.json", "README_TEAM.md", "README.md",
+            "EXPECTED_FINDINGS.md", "expected-findings.json", "plan.md",
+            "PROJECT_CONTEXT.md", "ARVE_ISSUES.md", "seed_history.py"]
+    present = [p for p in tail if (REPO / p).exists()]
+    if present:
+        add(*present)
+        if staged():
+            step += 1
+            commit(step, "refresh the answer keys and baselines for the v1.1 expansion",
+                   datetime(2026, 10, 5, 16, 40, tzinfo=timezone.utc))
 
     # ---- stamp the real commit hashes into the answer keys ----------------
     print("\nstamping commit references:")
@@ -621,6 +973,30 @@ def main():
                      if "PROVIDER_WEBHOOK_SECRET = os.environ.get" in l)
     assert v1_line != head_line, "SEC-06 did not move"
     print(f"  ok  SEC-06 moved from line {v1_line} to line {head_line}, value unchanged")
+
+    # SEC-27: the pre-rotation value must be reachable ONLY through history, and
+    # the rotation must not move the line -- that is what makes ARVE's
+    # file:rule:line fingerprint identical before and after.
+    notifier_path = REPO / "services" / "notifier-rust" / "notifier.toml"
+    if notifier_path.exists():
+        assert sec27_old not in notifier_path.read_text(encoding="utf-8"), \
+            "SEC-27 pre-rotation value is still at HEAD"
+        assert sec27_old not in read("seed_history.py"), \
+            "SEC-27 pre-rotation value leaked into this script as a literal"
+        print("  ok  SEC-27 pre-rotation value absent from HEAD and from this script")
+
+        old_line = next(n for n, l in enumerate(notifier_v1.splitlines(), 1) if sec27_old in l)
+        new_line = next(n for n, l in enumerate(final_notifier.splitlines(), 1) if sec27_new in l)
+        assert old_line == new_line, "SEC-27 rotation moved the line; it must stay in place"
+        print(f"  ok  SEC-27 rotated in place at line {new_line}, value changed")
+
+        rotation = git("log", "--all", "--oneline", "--grep",
+                       "rotate the notifier telemetry ingest key").stdout.strip()
+        assert rotation, "SEC-27 rotation commit is missing"
+        touching = git("log", "--all", "--oneline", "--",
+                       "services/notifier-rust/notifier.toml").stdout.strip().splitlines()
+        assert len(touching) >= 2, "SEC-27 needs an introducing commit and a rotating commit"
+        print(f"  ok  SEC-27 touched by {len(touching)} commits (introduced, then rotated)")
 
     # Every commit hash quoted in the answer keys must be an ANCESTOR OF HEAD.
     # Checking that `git log -1 <hash>` succeeds is not enough: unreachable
