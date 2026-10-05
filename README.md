@@ -30,17 +30,29 @@ explained. Its founding rule is *tools find the evidence, AI only explains the
 evidence* — a language model is never asked whether code is insecure.
 
 Evaluating that pipeline requires a repository whose answers are already known.
-This is that repository. It carries **17 planted findings** whose exact
-locations, severities and advisory identifiers are recorded up front, so ARVE's
-output can be diffed against ground truth rather than eyeballed.
+This is that repository. It carries **47 planted findings** and **6 negative
+controls** whose exact locations, severities and advisory identifiers are
+recorded up front, so ARVE's output can be diffed against ground truth rather
+than eyeballed.
 
 Two scanners are currently integrated, and the planted flaws are scoped to
 exactly what they can detect:
 
 | Engine | Detects | Findings here |
 |---|---|---|
-| **Gitleaks** | Hardcoded secrets, in the working tree **and in Git history** | `SEC-01` … `SEC-09` |
-| **OSV-Scanner** | Dependencies with published advisories, read from lockfiles | `DEP-01` … `DEP-08` |
+| **Gitleaks** | Hardcoded secrets, in the working tree **and in Git history** | `SEC-01` … `SEC-27` |
+| **OSV-Scanner** | Dependencies with published advisories, read from lockfiles | `DEP-01` … `DEP-20` |
+
+It also measures something a scanner benchmark usually cannot: **where in ARVE's
+own pipeline a finding is lost.** ARVE does not scan this repository as it sits
+on disk — it scans the subset its ingestion filter allows through, with no Git
+history. So each plant records whether it is dropped at ingestion, invisible
+because it lives only in history, or collapsed during normalization. Today
+**13 of the 47 never reach a scanner at all**, and every one of them is detected
+by ARVE's own pinned scanner when it is shown the file.
+
+Verify the whole thing with `python scripts/verify_plants.py`, and see
+[`ARVE_ISSUES.md`](ARVE_ISSUES.md) for the four gaps this exposes.
 
 There is deliberately **no SQL injection, XSS, path traversal, SSRF, or broken
 access control** here. Those need SAST (Semgrep), which is not wired into ARVE

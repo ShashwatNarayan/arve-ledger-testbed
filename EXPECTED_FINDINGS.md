@@ -3,32 +3,61 @@
 Ground truth for the `arve-ledger-testbed` repository. Every flaw here was
 planted deliberately and recorded at the moment it was planted.
 
-- **17 planted findings**: `SEC-01` … `SEC-09` (Gitleaks) and `DEP-01` … `DEP-08`
-  (OSV-Scanner).
+- **47 planted findings**: `SEC-01` … `SEC-27` (Gitleaks, 27) and `DEP-01` …
+  `DEP-20` (OSV-Scanner, 20), plus **6 negative controls** `NEG-01` … `NEG-06`
+  that must produce nothing.
 - Machine-readable form: [`expected-findings.json`](expected-findings.json).
 - **All credentials are synthetic**, randomly generated with the correct shape so
   scanners match them. None is valid for any real service.
 
+> ### 🔢 Do not count by hand
+> Every number in this file is produced by
+> **`python scripts/verify_plants.py`**, which runs all four scanner versions and
+> diffs them against the machine-readable key. Earlier revisions maintained these
+> totals by hand and they drifted — the commit count was written as 11, 12 *and*
+> 13, and the `HEAD` finding count as both 10 and 11. If a number here disagrees
+> with the script, **the script is right**.
+
 | Field | Value |
 |---|---|
-| Advisory data verified | **2026-08-31**, against the live osv.dev API |
-| Secrets verified | **2026-08-31**, gitleaks **8.30.1**, all 9 confirmed detected |
-| Expected OSV-Scanner records | **30** across 8 packages (29 planted + 1 scanner over-match) |
-| Expected Gitleaks findings | **10** at `HEAD`, **12** across full history |
-| Git history | **13 commits** before the v1.1 expansion (earlier revisions of this file said 11), rebuilt reproducibly by `seed_history.py`; v1.1 appends after them |
+| Advisory data verified | **2026-09-22**, against the live osv.dev API (originally 2026-08-31) |
+| Secrets verified | **2026-09-22**, all 27 detected by gitleaks **8.24.2** *and* **8.30.1** |
+| Expected Gitleaks findings | **31** at `HEAD` · **34** across full history · **24** in ARVE's view |
+| Expected OSV-Scanner records | **49** (osv **1.9.2**) · **50** (osv **2.5.1**) · **41** in ARVE's view |
+| Expected ARVE findings | **23** secrets after normalization — SEC-22's two secrets collapse into one |
+| Git history | **46 commits**; the v1.1 work is *appended*, and commits 1–10 stay byte-identical on rebuild |
 | Answer-key schema | **1.1** — adds `file_type`, `scanner_verification` and `arve_pipeline` to every finding; see [§ ARVE pipeline view](#arve-pipeline-view-schema-11) |
-| Scanner versions | ARVE-pinned **gitleaks 8.24.2 / osv-scanner 1.9.2** and reference **gitleaks 8.30.1 / osv-scanner 2.5.1**, all re-verified **2026-09-22** |
-| Line numbers | ✅ **all 20 verified** against the committed content at the final commit |
-| Reference baselines | `gitleaks-baseline.json`, `osv-baseline.json` — both committed |
+| Scanner versions | ARVE-pinned **gitleaks 8.24.2 / osv-scanner 1.9.2** and reference **gitleaks 8.30.1 / osv-scanner 2.5.1** |
+| Line numbers | ✅ **all 52 locations verified** against the committed content |
+| Baselines | `gitleaks-baseline.json`, `osv-baseline.json` (reference) and `arve-simulated-baseline.json` (pinned, ingested subset only) |
+
+> ### The one number that matters most
+> **13 of the 47 plants never reach ARVE's scanners**, and 2 more are lost after
+> they do:
+>
+> | | Plants | Which |
+> |---|---|---|
+> | Dropped at ingestion — secrets | **7** | SEC-03, SEC-08, SEC-11, SEC-15, SEC-19, SEC-25, SEC-26 |
+> | Dropped at ingestion — lockfiles | **5** | DEP-10, DEP-12, DEP-16, DEP-17, DEP-18 |
+> | History-only, unreachable in `dir` mode | **1** | SEC-04 |
+> | Collapsed in normalization | **2** | SEC-22 (2 secrets → 1), DEP-20 (3 records → 2) |
+>
+> **Every one of the 12 ingestion losses is detected by ARVE's own pinned scanner
+> when it is allowed to see the file.** So each is an ARVE *pipeline* gap, not a
+> scanner limitation — which is precisely the distinction this testbed exists to
+> make. See [§ ARVE pipeline view](#arve-pipeline-view-schema-11) and
+> [`ARVE_ISSUES.md`](ARVE_ISSUES.md).
 
 > ### Why the advisory counts drift
 > A vulnerable package carries *every* advisory published against it, not just
 > the one it was chosen for. `lodash@4.17.11` alone accounts for 7 records. New
 > CVEs land continuously, so the totals here will grow over time. Each `DEP-*`
 > below names **one target advisory** — the one that exercises the behaviour the
-> finding is testing — and the full 29-record inventory is listed in
-> [§ Full expected OSV inventory](#full-expected-osv-inventory) so the diff can be
-> made complete rather than approximate.
+> finding is testing — and the full **50-record** inventory is carried in
+> `expected-findings.json` (`expected_osv_inventory`, each entry tagged with the
+> file it comes from) so the diff can be made complete rather than approximate.
+> The original 30 records are also listed in
+> [§ Full expected OSV inventory](#full-expected-osv-inventory) below.
 
 ---
 
@@ -41,6 +70,11 @@ planted deliberately and recorded at the moment it was planted.
 | Phase 4 | history behaviour for `SEC-04`, `SEC-06` | ✅ built and verified |
 | Phase 5 | line-number verification, scanner baselines | ✅ complete — baselines committed |
 | v1.1 Phase 1 | schema 1.1: `file_type`, `scanner_verification`, `arve_pipeline` on all 17, plus negative controls, scanner limitations and the coverage matrix | ✅ complete |
+| v1.1 Phase 2 | `SEC-10` … `SEC-27` — 18 secrets across 15 file types | ✅ planted, scanned and recorded |
+| v1.1 Phase 3 | `DEP-09` … `DEP-20` — 12 dependencies across 6 new ecosystems | ✅ planted, scanned and recorded |
+| v1.1 Phase 4 | `NEG-01` … `NEG-06` — negative controls | ✅ verified silent in all four scanner versions |
+| v1.1 Phase 5 | appended history, SEC-27's rotation commit, rebuild proof | ✅ commits 1–10 byte-identical on rebuild |
+| v1.1 Phase 6 | `scripts/verify_plants.py`, regenerated baselines, line-number verification | ✅ complete |
 
 ---
 

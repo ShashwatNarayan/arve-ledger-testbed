@@ -68,23 +68,58 @@ matched to the two engines you have.
 
 | | Count |
 |---|---|
-| Planted findings total | **17** |
-| Hardcoded secrets (Gitleaks) | **9** → produce **10** findings at `HEAD`, **12** across full history |
-| Vulnerable dependencies (OSV-Scanner) | **8** → produce **30** advisory records |
+| Planted findings total | **47** |
+| Hardcoded secrets (Gitleaks) | **27** → **31** findings at `HEAD`, **34** across full history |
+| Vulnerable dependencies (OSV-Scanner) | **20** → **49** advisory records |
+| Negative controls | **6** → must produce **nothing** |
+
+**Three numbers, not one.** How many findings exist depends on *what you point
+the scanner at*, and the difference is the most useful thing in this repository:
+
+| Scan | Gitleaks | OSV | What it tells you |
+|---|---|---|---|
+| **Reference, `git` mode** — full history | **34** | **50** | the upper bound: everything that is there |
+| **Reference, `dir` mode** — working tree at `HEAD` | **31** | **49** | what a filesystem scan sees; history is gone |
+| **ARVE-simulated** — pinned versions, ingested files only | **24** | **41** | **what ARVE actually sees today** |
+
+The gap between rows 2 and 3 is not scanner error. It is ARVE's ingestion filter
+dropping files before any scanner runs. **12 plants are lost that way, and every
+one of them is detected by ARVE's own pinned scanner when it is allowed to see
+the file.** A thirteenth (SEC-04) exists only in history, which `dir` mode cannot
+reach.
+
+> **Do not count by hand.** Run `python scripts/verify_plants.py`. It runs all
+> four scanner versions, diffs them against the answer key, exits non-zero on any
+> unexplained difference, and prints every number quoted in this document. The
+> totals in these docs used to be maintained by hand and drifted badly.
 
 Two numbers look "wrong" at first glance and are correct:
 
-- **9 secrets but 10–12 findings.** Two of the secrets appear in more than one
-  place, and one exists only in old commits. Explained in §6.
-- **8 dependency findings but 30 records.** A vulnerable package carries *every*
-  advisory ever published against it, not just the one it was chosen for.
-  `lodash` alone accounts for 7. Explained in §7.
+- **27 secrets but 31–34 findings.** Several secrets appear in more than one
+  place (SEC-23 is one credential in three files), one exists only in old
+  commits, and one is rotated in place so history holds two values. See §6.
+- **20 dependency plants but 49 records.** A vulnerable package carries *every*
+  advisory published against it, not just the one it was chosen for. `lodash`
+  alone accounts for 7. See §7.
 
 ---
 
 ## 3. Quick start
 
-### Just scan it (you probably want this)
+### Verify the whole thing in one command (start here)
+
+```bash
+python scripts/verify_plants.py
+```
+
+Runs all four scanner versions in Docker — ARVE-pinned **gitleaks 8.24.2** and
+**osv-scanner 1.9.2**, reference **gitleaks 8.30.1** and **osv-scanner 2.5.1** —
+in `git` mode, `dir` mode, and `dir` over only the files ARVE would ingest. It
+diffs every run against `expected-findings.json` and exits non-zero on anything
+the answer key does not explain. Nothing is installed on your machine and no
+secret value is ever printed.
+
+### Just scan it yourself
 
 ```bash
 # Secrets — IMPORTANT: use `git`, not `dir`. See §9.
@@ -92,6 +127,9 @@ gitleaks git . --report-format json --report-path my-gitleaks.json
 
 # Vulnerable dependencies
 osv-scanner scan source --recursive . --format json --output-file my-osv.json
+
+# What ARVE would actually ingest, before any scanner runs
+python scripts/arve_filter_mirror.py
 ```
 
 Then compare against `expected-findings.json`. See §8 for how.
@@ -167,6 +205,41 @@ arve-ledger-testbed/
     └── src/main.js           calls two endpoints
 ```
 
+### What the v1.1 expansion added
+
+```
+ARVE_ISSUES.md                 ★ four issue-ready writeups of the pipeline gaps
+PROJECT_CONTEXT.md             what ARVE is and how it consumes this repo
+arve-simulated-baseline.json   ★ what ARVE's own scanners actually see
+scripts/
+  arve_filter_mirror.py        ★ mirrors ARVE's ingestion filter
+  verify_plants.py             ★ verifies everything, prints the canonical counts
+
+services/
+  settlement-java/    Java + Maven      → SEC-10, SEC-11, DEP-09
+  payout-scheduler/   Gradle            → DEP-10
+  reconciler-go/      Go                → SEC-16, DEP-11
+  notifier-rust/      Rust              → SEC-27, DEP-12
+  ledger-export-dotnet/  .NET           → DEP-15
+apps/
+  admin-ui/           TypeScript + yarn → SEC-14, SEC-15, SEC-23, SEC-24, DEP-13, DEP-19, NEG-02, NEG-04
+  status-page/        HTML + CSS        → SEC-12, SEC-13, NEG-05
+  partner-webhooks/   pnpm              → DEP-14, DEP-20
+  merchant-portal/    Ruby + bundler    → DEP-18
+ops/
+  Dockerfile          → SEC-17            k8s/       → SEC-18, SEC-23
+  terraform/          → SEC-19            scripts/   → SEC-20, NEG-03, NEG-06
+  build/              → SEC-26
+db/
+  seed.sql            → SEC-21            fixtures/  → SEC-25
+tools/                Python tooling    → SEC-22, SEC-23, DEP-16, DEP-17, NEG-02
+docs/cloud-setup.md   → NEG-01
+```
+
+**These services are stubs.** They are plausible and small, and they exist to
+give each file type a realistic home. They are not expected to build or run —
+only `backend/` and `web/` do that.
+
 **A file that is NOT in the working tree but matters:**
 `backend/app/settlement.py` — it was added in one commit and deleted in a later
 one. It holds **SEC-04**. You will only see it if you scan Git history.
@@ -195,6 +268,53 @@ Gitleaks ignores comments entirely, so this does not help or hinder detection.
 | **SEC-07** | 64-char key, no vendor prefix | `backend/app/config.py:40` | `generic-api-key` | HIGH |
 | **SEC-08** | SendGrid token in a template file | `.env.example:23` | `sendgrid-api-token` | MEDIUM |
 | **SEC-09** | Slack webhook URL | `docs/runbook.md:66` | `slack-webhook-url` | MEDIUM |
+
+### The v1.1 secrets — 18 more, across 15 file types
+
+Full reasoning for each is in [`EXPECTED_FINDINGS.md`](EXPECTED_FINDINGS.md).
+⛔ marks a plant ARVE's ingestion filter drops before any scanner runs.
+
+| ID | What it is | Where | Rule | ARVE |
+|---|---|---|---|---|
+| **SEC-10** | GitHub token | `services/settlement-java/…/GatewayClient.java:25` | `github-pat` | ✅ |
+| **SEC-11** | Twilio API key | `…/application.properties:12` | `twilio-api-key` | ⛔ |
+| **SEC-12** | Google Maps key in a CSS `url()` | `apps/status-page/styles.css:48` | `gcp-api-key` | ✅ |
+| **SEC-13** | Mapbox token in an inline script | `apps/status-page/index.html:37` | `mapbox-api-token` | ✅ |
+| **SEC-14** | GitLab token | `apps/admin-ui/src/deployStatus.ts:15` | `gitlab-pat` | ✅ |
+| **SEC-15** | npm publish token | `apps/admin-ui/.npmrc:6` | `npm-access-token` | ⛔ |
+| **SEC-16** | Slack bot token | `services/reconciler-go/main.go:23` | `slack-bot-token` | ✅ |
+| **SEC-17** | Hugging Face token on `ENV` | `ops/Dockerfile:6` | `huggingface-access-token` | ✅ |
+| **SEC-18** | EC private key in a k8s Secret | `ops/k8s/secrets.yaml:12` | `private-key` | ✅ |
+| **SEC-19** | Terraform Cloud token | `ops/terraform/main.tf:17` | `hashicorp-tf-api-token` | ⛔ |
+| **SEC-20** | Shopify token | `ops/scripts/backup.sh:14` | `shopify-access-token` | ✅ |
+| **SEC-21** | JWT bearer token | `db/seed.sql:13` | `jwt` | ✅ |
+| **SEC-22** | **two** secrets on one line | `tools/sync_keys.py:16` | `generic-api-key` ×2 | ⚠ 1 |
+| **SEC-23** | one key in **three** file types | `.js:11`, `.yaml:12`, `.py:17` | `generic-api-key` ×3 | ✅ |
+| **SEC-24** | Algolia admin key in a 154 KB bundle line | `apps/admin-ui/public/vendor.min.js:1` | `algolia-api-key` | ✅ |
+| **SEC-25** | Square token in a 1.2 MB fixture | `db/fixtures/merchant_export.json:38901` | `square-access-token` | ⛔ |
+| **SEC-26** | PyPI upload token | `ops/build/publish.sh:12` | `pypi-upload-token` | ⛔ |
+| **SEC-27** | key **rotated in place** | `services/notifier-rust/notifier.toml:14` | `new-relic-user-api-key` | ✅ |
+
+### The four that are aimed squarely at your normalizer
+
+**SEC-22 — two different secrets, one line.** Gitleaks reports both, and both
+get the *identical* fingerprint `tools/sync_keys.py:generic-api-key:16`, because
+the dir-mode fingerprint is `file:rule:line` and `--redact` removes the values.
+**Expect one finding, not two** — one real credential silently disappears.
+
+**SEC-23 — one secret, three file types.** The same value in a `.js`, a `.yaml`
+and a `.py` file produces **three** findings with three fingerprints. One
+credential, three rotations' worth of noise. The opposite failure to SEC-22, from
+the same field.
+
+**SEC-27 — a key rotated in place.** Same file, same line, new value. A history
+scan shows two findings; ARVE sees one that never changes state. **A rotated
+credential is indistinguishable from an untouched one.**
+
+**SEC-18 vs SEC-03 — the control pair.** Same `private-key` rule, same class of
+secret. SEC-18 is in a `.yaml` file and is ingested; SEC-03 is a `.pem` and is
+not. If ARVE reports one and not the other, the difference is provably ingestion
+rather than the rule.
 
 ### What each one is actually testing
 
@@ -268,17 +388,45 @@ copy-paste-ready commands — exactly as this one is.
 
 ---
 
-## 6. Why 9 secrets produce 10 or 12 findings
+## 6. Why 27 secrets produce 31, 34 or 24 findings
 
 This trips people up, so, explicitly:
 
 | Scan | Findings | Why |
 |---|---|---|
-| Working tree only | **10** | 9 secrets, but SEC-02 and SEC-05 each appear twice (+2), and SEC-04 does not exist at `HEAD` (−1) |
-| Full Git history | **12** | the above, plus SEC-04 (+1), plus SEC-06 appearing at both its old and new line (+1) |
+| **ARVE-simulated** (ingested files only) | **24** | the `HEAD` set minus the 7 secrets ARVE's ingestion filter drops |
+| Working tree at `HEAD` | **31** | 27 secrets; several appear more than once (SEC-02 ×2, SEC-05 ×2, SEC-22 ×2, SEC-23 ×3), and SEC-04 does not exist at `HEAD` |
+| Full Git history | **34** | the above, plus SEC-04 (+1), SEC-06 at its old line (+1), SEC-27's pre-rotation value (+1) |
 
-If you get 10, you scanned the filesystem. If you get 12, you scanned history.
-**12 is the one you want** — see §9.
+If you get 31, you scanned the filesystem. If you get 34, you scanned history.
+**34 is the reference number.** If you get 24, you are correctly simulating what
+ARVE ingests — see §6a.
+
+And one more number: **ARVE should store 23, not 24**, because SEC-22's two
+distinct secrets share a fingerprint and collapse into one finding.
+
+---
+
+## 6a. The seven secrets ARVE never sees
+
+Each of these is detected by ARVE's **own pinned scanner** (gitleaks 8.24.2)
+when it is shown the file. They are lost earlier, at ingestion, for four
+distinct reasons — which is why they are worth having:
+
+| ID | File | Why it is dropped |
+|---|---|---|
+| SEC-03 | `backend/keys/webhook_signing.pem` | `.pem` is in no allow-list |
+| SEC-08 | `.env.example` | `splitext` → `.example`, so the `.env.example` entry can never match |
+| SEC-11 | `…/application.properties` | `.properties` is in no allow-list |
+| SEC-15 | `apps/admin-ui/.npmrc` | dotfile → extension is `""` |
+| SEC-19 | `ops/terraform/main.tf` | `.tf` is in no allow-list |
+| SEC-25 | `db/fixtures/merchant_export.json` | 1.2 MB, over the 1 MiB size cap |
+| SEC-26 | `ops/build/publish.sh` | path contains `build`, an ignored directory |
+
+Plus **SEC-04**, which exists only in history and so is unreachable in `dir`
+mode, and **five dependency lockfiles** (§7a). Run
+`python scripts/arve_filter_mirror.py` to see the filter's verdict on every
+file.
 
 ---
 
@@ -298,6 +446,47 @@ only looking at the top level.
 | **DEP-06** | `jquery 3.3.1` | npm | GHSA-6c3j-c64m-qhgq / CVE-2019-11358 | MEDIUM | direct |
 | **DEP-07** | `serialize-javascript 2.1.2` | npm | GHSA-5c6j-r48x-rmvq | HIGH | direct |
 | **DEP-08** | `stringstream 0.0.5` | npm | GHSA-mf6x-7mm4-x2g7 / CVE-2018-21270 | MEDIUM | direct |
+
+### The v1.1 additions — six more ecosystems
+
+Every lockfile below is **genuine package-manager output**, produced by running
+the real tool in a throwaway container.
+
+| ID | Package | Ecosystem / file | Records | ARVE sees it? |
+|---|---|---|---|---|
+| **DEP-09** | `commons-text 1.9` | Maven `pom.xml` | 1 | ✅ |
+| **DEP-10** | `snakeyaml 1.33` | Maven `gradle.lockfile` | 1 | ⛔ |
+| **DEP-11** | `golang.org/x/text 0.3.8` | Go `go.mod` | 1 | ✅ |
+| **DEP-12** | `ansi_term 0.12.1` | crates.io `Cargo.lock` | 1 | ⛔ |
+| **DEP-13** | `json5 2.2.1` | npm `yarn.lock` | 1 | ✅ |
+| **DEP-14** | `node-fetch 2.6.0` | npm `pnpm-lock.yaml` v9 | 2 | ✅ |
+| **DEP-15** | `Newtonsoft.Json 12.0.1` | NuGet `packages.lock.json` | 1 | ✅ |
+| **DEP-16** | `wheel 0.37.0` | PyPI `poetry.lock` | 2 | ⛔ |
+| **DEP-17** | `jinja2 3.1.5` | PyPI `requirements-dev.txt` | 2 | ⛔ |
+| **DEP-18** | `addressable 2.7.0` | RubyGems `Gemfile.lock` | 2 | ⛔ |
+| **DEP-19** | `minimist 1.2.0` | npm `yarn.lock` — same as DEP-05 | 2 | ✅ |
+| **DEP-20** | `minimist 0.0.8` **+** `1.2.5` | npm `pnpm-lock.yaml` | 3 | ⚠ 2 |
+
+---
+
+## 7a. The five lockfiles ARVE never sees
+
+**Whole ecosystems are scanned as empty.** In each case ARVE's pinned
+osv-scanner parses the file perfectly well when shown it:
+
+| Lockfile | Ecosystem | What ARVE ingests instead |
+|---|---|---|
+| `gradle.lockfile` | Maven/Gradle | `build.gradle` — a manifest OSV cannot resolve |
+| `Cargo.lock` | crates.io | `Cargo.toml` — likewise |
+| `poetry.lock` | PyPI | `pyproject.toml` — likewise |
+| `requirements-dev.txt` | PyPI | nothing; only the exact name `requirements.txt` is allowed |
+| `Gemfile.lock` | RubyGems | nothing |
+
+OSV reads **lockfiles**, not manifests. Ingesting `Cargo.toml` while skipping
+`Cargo.lock` means the Rust dependency tree is never examined at all.
+
+Worth contrasting: `packages.lock.json` (DEP-15) **is** ingested — not because
+NuGet is supported, but because the filename happens to end in `.json`.
 
 ### What each one is testing
 
@@ -357,10 +546,17 @@ one right answer.
 
 ```jsonc
 {
-  "findings": [ ... 17 entries, one per planted finding ... ],
-  "expected_osv_inventory": [ ... all 30 advisory records ... ],
-  "packages_expected_clean": [ ... 24 packages that must produce NOTHING ... ],
-  "normalization_notes": [ ... two gotchas, see below ... ]
+  "schema_version": "1.1",
+  "findings": [ ... 47 entries, one per planted finding ... ],
+  "expected_osv_inventory": [ ... all 50 advisory records, each tagged with its file ... ],
+  "negative_controls": [ ... 6 things that must produce NOTHING ... ],
+  "known_false_positives": [ ... empty: nothing fired ... ],
+  "scanner_limitations": [ ... 3 scanner quirks that are NOT scored ... ],
+  "coverage_matrix": { ... plants by file type x engine x ingestion status ... },
+  "packages_expected_clean": [ ... packages that must produce NOTHING ... ],
+  "files_expected_no_secret_findings": [ ... 16 files that must stay silent ... ],
+  "tooling_notes": [ ... what a history rebuild does and does not reproduce ... ],
+  "normalization_notes": [ ... gotchas, see below ... ]
 }
 ```
 
@@ -388,12 +584,24 @@ found when run against this repo. They exist to answer one question fast:
   will fix the plant.
 - **The reference tool caught it and yours did not** → the bug is in your code.
 
-Without these you can burn days debugging the wrong system. For the record: at
-build time, **both reference tools detected all 17 planted findings**, so there
-are no known gaps.
+Without these you can burn days debugging the wrong system. For the record:
+**all 47 plants are detected by their reference tool, and all 47 are also
+detected by ARVE's pinned versions** when those are shown the file. There are no
+known scanner gaps — every miss in ARVE's view is an ingestion or normalization
+gap, which is the whole point.
 
-Versions used: **Gitleaks 8.30.1**, **OSV-Scanner 2.5.1**, advisory data as of
-**2026-08-31**.
+There are now **three** baselines:
+
+| File | Produced by | Scope |
+|---|---|---|
+| `gitleaks-baseline.json` | gitleaks **8.30.1**, `git` mode | whole repository, full history — **34** findings |
+| `osv-baseline.json` | osv-scanner **2.5.1** | whole working tree — **50** records |
+| `arve-simulated-baseline.json` | **pinned** 8.24.2 + 1.9.2 | **ingested files only** — **24** findings, **41** records |
+
+The third one is the one to diff ARVE's own output against. The first two tell
+you what is *there*; the third tells you what ARVE can currently *see*.
+
+Advisory data verified **2026-09-22**.
 
 ### Suggested way to grade
 
@@ -508,8 +716,8 @@ plain text, and Gitleaks matches it like any other.
 
 ## 11. The Git history, and rebuilding it
 
-The history is part of the fixture. There are **12 commits** spread over about
-three weeks, with messages written to read like ordinary development rather than
+The history is part of the fixture. There are **46 commits** spread over about
+three months, with messages written to read like ordinary development rather than
 like a test fixture — `add nightly settlement file transfer`, `hoist webhook
 module constants to the top of the file`, and so on.
 
@@ -528,10 +736,21 @@ The commits that matter structurally:
 python seed_history.py --force      # --force required: it deletes and recreates .git
 ```
 
-It is deterministic — commits 1 through 10 come out with **byte-identical hashes**
-every time, so the commit references quoted above and in the answer keys stay
-valid across rebuilds. It also self-checks at the end, confirming SEC-04 is absent
-from the working tree but present in history, and that SEC-06 genuinely moved.
+**Commits 1 through 10 come out with byte-identical hashes every time** — that
+range holds every commit the answer keys quote, for SEC-04 and SEC-06 — so those
+references stay valid across rebuilds. This was verified by rebuilding a scratch
+clone and diffing. Commits 11 onward stage files that get edited (both answer
+keys, the baselines, the script itself), so their hashes do move; SEC-27's two
+commits sit in that range and are re-stamped into the answer key automatically.
+
+Two details keep the guarantee true, and both are easy to break: the script pins
+`core.autocrlf=input` (otherwise your Git line-ending setting changes every
+blob), and it embeds the original commit-1 `README.md` rather than reading the
+working tree (otherwise editing the README rewrites every hash after it).
+
+It self-checks at the end, confirming SEC-04 is absent from the working tree but
+present in history, that SEC-06 genuinely moved, and that SEC-27's pre-rotation
+value exists only in history.
 
 You should not need to run it. It is there so that if the history is ever lost —
 zipped without `.git`, copied wrongly onto a pen drive — the fixture can be
@@ -559,7 +778,9 @@ untrustworthy. Please do say something rather than working around it.
 
 ### One-line summary
 
-**17 planted findings, all documented up front, all confirmed detectable by the
-real tools. Scan with `gitleaks git .` and `osv-scanner scan source --recursive
-.`, diff against `expected-findings.json`, and use the committed baselines to tell
-"our tool has a bug" apart from "the testbed is wrong".**
+**47 planted findings and 6 negative controls, all documented up front, all
+confirmed detectable by ARVE's own pinned scanners. Run
+`python scripts/verify_plants.py` to check everything at once. The number that
+matters is not how many you find, but which of the three counts you are
+measuring against — 34 in history, 31 on disk, 24 in ARVE's view — because the
+gap between the last two is ARVE's ingestion filter, not your scanner.**

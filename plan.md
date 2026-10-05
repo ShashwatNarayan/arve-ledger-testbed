@@ -4,6 +4,7 @@ Working plan for constructing the deliberately vulnerable payments-ledger testbe
 described in `NEW_PROJECT_START_README.md`. Five phases, executed in order.
 
 **Status:** ✅ **complete** — all five phases done, 16/16 definition-of-done items met
+**Superseded by:** the [v1.1 expansion](#v11-expansion--arve-pipeline-coverage) at the end of this file, which takes the testbed from 17 to 47 findings and adds ARVE pipeline attribution
 **Dependency verification date:** 2026-08-31 (every version queried live against the
 osv.dev API — see Phase 2)
 
@@ -174,8 +175,8 @@ testbed exists to avoid:
    any `AKIA...` value containing `0`, `1`, `8` or `9`, at any entropy. Only 4 of 40
    naively-random candidates were detected; 30 of 30 base32-alphabet candidates were.
 
-Result: 9 planted secrets produce **11** gitleaks findings at HEAD (SEC-02 and SEC-05
-each yield two).
+Result: 9 planted secrets produce **10** gitleaks findings at HEAD (SEC-02 and SEC-05
+each yield two; SEC-04 is history-only). An earlier revision of this line said 11.
 
 `backend/app/settlement.py` exists only in history and does not count against the
 ~15-file budget.
@@ -310,3 +311,118 @@ what is detectable.
 Three plants were silently undetectable when first written and were caught only because
 the scanners were run *during* planting rather than after — see the baseline section of
 `EXPECTED_FINDINGS.md`.
+
+---
+
+# v1.1 expansion — ARVE pipeline coverage
+
+**Status:** ✅ complete. 47 planted findings (up from 17), 6 negative controls,
+3 recorded scanner limitations, verified against all four scanner versions on
+**2026-09-22**.
+
+## What changed, and why
+
+v1.0 answered *"can the scanners find it?"*. Every plant sat in a file type the
+scanners were already known to read, and the answer key recorded what a scanner
+finds **on disk**.
+
+That is not what ARVE scans. ARVE ingests a repository through a `FileFilter`,
+writes only the allowed files to a workspace, and scans that workspace **with no
+`.git` directory**. So a plant can be missed for three unrelated reasons, and
+v1.0 could not tell them apart:
+
+| Miss type | Cause | Whose bug |
+|---|---|---|
+| Ingestion gap | the filter skipped the file | ARVE Phase 2 |
+| Scanner gap | the pinned scanner does not detect it | testbed or scanner |
+| Normalizer gap | detected, then collapsed or mangled | ARVE Phase 4A |
+
+v1.1 makes that distinction the point of the fixture. Every finding now carries
+an `arve_pipeline` block, and the plants are chosen so that each gap is isolated
+by a **control pair** — two plants identical in every respect except the one
+being tested.
+
+## The control pairs
+
+| Pair | Identical | Differs | Isolates |
+|---|---|---|---|
+| SEC-03 / **SEC-18** | `private-key` rule, real key | `.pem` vs `.yaml` | extension allow-list |
+| SEC-20 / **SEC-26** | `.sh`, vendor rule | `ops/scripts/` vs `ops/build/` | ignored-directory filter |
+| SEC-15 / **SEC-17** | no file extension at all | `.npmrc` vs `Dockerfile` | filename allow-list |
+| DEP-05 / **DEP-19** | minimist 1.2.0, same advisories | different lockfiles | `file_path` in the fingerprint (works) |
+| **DEP-19** / **DEP-20** | same lockfile machinery | two files vs two versions | version missing from the fingerprint (broken) |
+| SEC-22 / **SEC-23** | `generic-api-key` | 2 secrets 1 line vs 1 secret 3 files | `secret_hash` identity, in both directions |
+
+## Phases
+
+| Phase | Work | Outcome |
+|---|---|---|
+| 0 | Recon: scanner images, rebuild determinism, candidate verification | 8 of 32 candidate rows changed before anything was planted |
+| 1 | Schema 1.1 on all 17 existing findings | ingestion status computed, not guessed |
+| 2 | `SEC-10` … `SEC-27` | 18 secrets, 15 file types, 4 ingestion gaps |
+| 3 | `DEP-09` … `DEP-20` | 12 dependencies, 6 new ecosystems, 5 ingestion gaps |
+| 4 | `NEG-01` … `NEG-06` | all silent in all four scanner versions |
+| 5 | Appended history + SEC-27's rotation | commits 1–10 byte-identical on rebuild |
+| 6 | `verify_plants.py`, baselines, docs | counts are computed, not hand-maintained |
+
+## What Phase 0 changed before a single plant was made
+
+Verifying candidates first, against the real scanners and the live osv.dev API,
+rejected a third of the proposed matrix:
+
+- **`lodash 4.17.21` is not patched.** It was proposed as the "clean version"
+  negative control and still carries **3** live advisories. It would have been a
+  control that quietly expected findings. Replaced with `4.18.1` (0 advisories,
+  registry hash verified).
+- **`axios` carries 29–30 advisories** at both proposed versions, `log4j-core
+  2.14.1` carries 7, `guzzlehttp/psr7` 6, `jinja2 3.1.4` 6. All replaced with
+  1–2 record packages so expected counts are unambiguous.
+- **A Mapbox token in a URL does not match `mapbox-api-token`** — the rule needs
+  the literal word `mapbox` immediately before the `=`. Recorded as `LIM-01`.
+- **A Google API key followed by `&` matches no rule at all.** Google's own
+  documented `?key=…&callback=…` order is invisible to gitleaks. Recorded as
+  `LIM-02`; the plant puts the key last so it is detectable.
+- **Maven resolves transitively over the network** in both OSV versions, so
+  commons-text 1.9 dragged in a vulnerable `commons-lang3 3.11`. Pinned to
+  3.20.0 in `dependencyManagement` to hold the noise floor at zero.
+
+## Two bugs found in the testbed's own tooling
+
+**`seed_history.py` could never re-stamp a commit hash.** Its substitution
+pattern contained two literal **backspace bytes** (0x08) where the source should
+have read `\b`. Terminals erase the preceding character when printing a
+backspace, so every listing of the file — including `inspect.getsource` — showed
+a correct-looking regex. The pattern matched nothing, the rewrite silently did
+nothing, and the function returned `False` while still printing the mappings it
+had computed. Present since the original build and never noticed, because the
+rewrite only runs when a quoted hash actually changes — which first happens with
+SEC-27.
+
+**Hand-maintained counts had drifted.** The commit count appeared as 11, 12 and
+13 in different files; the `HEAD` finding count as both 10 and 11. Fixed, and
+made structurally impossible to repeat: `scripts/verify_plants.py` is now the
+single source of truth and prints every number the documents quote.
+
+## Reproducibility, stated precisely
+
+A `--force` rebuild reproduces **commits 1–10 byte-identically** — the range
+holding every hash the answer key quotes (SEC-04's add/delete, SEC-06's
+introduce/move, and the two baseline commits). Verified by rebuilding a scratch
+clone and diffing. Commits 11 onward stage files this project keeps editing, so
+their hashes move; SEC-27's two commits sit there and are re-stamped
+automatically.
+
+Two things are load-bearing and were found by testing, not assumption:
+
+1. `core.autocrlf` is pinned to `input` by the script. With it off, every blob
+   and therefore every hash changes.
+2. The commit-1 `README.md` blob is embedded in the script. Reading it from the
+   working tree meant that editing the README rewrote commit 1 and every hash
+   after it — which Phase 6 would have done.
+
+## Out of scope, unchanged
+
+No SAST-class flaws, no allowlist or `.gitleaksignore` files, no edits to files
+holding existing plants, no rewriting of existing commits, and **no changes to
+ARVE itself** — the gaps are documented in `ARVE_ISSUES.md` for filing against
+the ARVE repository, with evidence and scoring impact but no proposed fixes.
