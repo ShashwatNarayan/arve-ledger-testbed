@@ -25,7 +25,7 @@ planted deliberately and recorded at the moment it was planted.
 | Expected Gitleaks findings | **31** at `HEAD` · **34** across full history · **24** in ARVE's view |
 | Expected OSV-Scanner records | **49** (osv **1.9.2**) · **50** (osv **2.5.1**) · **41** in ARVE's view |
 | Expected ARVE findings | **23** secrets after normalization — SEC-22's two secrets collapse into one |
-| Git history | **46 commits**; the v1.1 work is *appended*, and commits 1–10 stay byte-identical on rebuild |
+| Git history | the v1.1 work is *appended*; commits 1–10 stay byte-identical on rebuild. `verify_plants.py` prints the live commit count — it changes with every commit, so it is deliberately not written out here |
 | Answer-key schema | **1.1** — adds `file_type`, `scanner_verification` and `arve_pipeline` to every finding; see [§ ARVE pipeline view](#arve-pipeline-view-schema-11) |
 | Scanner versions | ARVE-pinned **gitleaks 8.24.2 / osv-scanner 1.9.2** and reference **gitleaks 8.30.1 / osv-scanner 2.5.1** |
 | Line numbers | ✅ **all 52 locations verified** against the committed content |

@@ -193,7 +193,7 @@ development — `"add nightly settlement file transfer"`, never `"add vulnerable
 
 ### Required commit sequence
 
-**As built — 11 commits, dated across three weeks:**
+**As built — 13 commits, dated across three weeks** (an earlier revision of this line said 11):
 
 | # | Commit | Contains |
 |---|---|---|

@@ -716,9 +716,9 @@ plain text, and Gitleaks matches it like any other.
 
 ## 11. The Git history, and rebuilding it
 
-The history is part of the fixture. There are **46 commits** spread over about
-three months, with messages written to read like ordinary development rather than
-like a test fixture — `add nightly settlement file transfer`, `hoist webhook
+The history is part of the fixture. It spans about three months, with messages
+written to read like ordinary development rather than like a test fixture —
+`add nightly settlement file transfer`, `hoist webhook
 module constants to the top of the file`, and so on.
 
 The commits that matter structurally:
@@ -729,6 +729,8 @@ The commits that matter structurally:
 | `4da4e7e` | add provider webhook handler with signature verification | **SEC-06 at line 43** |
 | `dc9a9d6` | hoist webhook module constants to the top of the file | **SEC-06 moves to line 22** |
 | `5c1f6a8` | clean up settlement config, the transfer moved to the platform job | **SEC-04 deleted** |
+| `471c68d` | add notifier service config | **SEC-27 enters, pre-rotation value** |
+| `b24991a` | rotate the notifier telemetry ingest key | **SEC-27 rotated in place — same line, new value** |
 
 `seed_history.py` rebuilds all of this from scratch:
 
