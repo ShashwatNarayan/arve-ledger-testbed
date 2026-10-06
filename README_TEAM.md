@@ -127,7 +127,7 @@ only rule / file / line are shown.
 
 ```
 ingestion [PREDICTED by scripts/arve_filter_mirror.py, not by ARVE]
-  ok    70 of 88 files ingested, 18 skipped
+  ok    71 of 89 files ingested, 18 skipped
             1 file_too_large
             1 ignored_directory
            16 unsupported_file_type
@@ -147,6 +147,8 @@ dependencies (osv-scanner)
   ok    2.5.1 ARVE-simulated [PREDICTED]: 41 records, exactly as expected
 
 negative controls
+  ok    all 16 must-stay-silent files still exist at HEAD
+  ok    all 12 negative-control occurrences present
   ok    8.24.2: all 16 must-stay-silent files are clean
   ok    8.30.1: all 16 must-stay-silent files are clean
 
@@ -155,6 +157,10 @@ line numbers
 
 OK: every plant, negative control and count matches the answer key
 ```
+
+*Transcript captured from a fresh clone at commit `4512b3a`. The file counts on
+the first line move whenever a file is added; the finding counts do not. If any
+finding count here differs from what the script prints, trust the script.*
 
 followed by the canonical counts block. **Every number quoted anywhere in this
 file comes from that output.** If this document and the script ever disagree,
