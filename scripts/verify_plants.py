@@ -316,13 +316,37 @@ def main():
 
         report.section("negative controls")
         silent = set(key.get("files_expected_no_secret_findings", []))
+
+        # A file that no longer exists passes the "produced no findings" test
+        # trivially, so check existence FIRST. This caught two answer-key files
+        # being deleted by an over-broad `git add -A`.
+        present = {p for p in silent if (tree / p).exists()}
+        if present != silent:
+            report.fail("files the answer key expects are missing from HEAD",
+                        sorted(silent - present))
+        else:
+            report.ok(f"all {len(silent)} must-stay-silent files still exist at HEAD")
+
+        # Same trap for every negative control's occurrences.
+        missing_occurrences = []
+        for control in key.get("negative_controls", []):
+            for occurrence in control.get("occurrences", []):
+                path = occurrence.get("file_path")
+                if path and not (tree / path).exists():
+                    missing_occurrences.append(f"{control['id']}: {path}")
+        if missing_occurrences:
+            report.fail("negative-control occurrences are missing from HEAD", missing_occurrences)
+        else:
+            total = sum(len(c.get("occurrences", [])) for c in key.get("negative_controls", []))
+            report.ok(f"all {total} negative-control occurrences present")
+
         for version in gitleaks_versions:
             noisy = sorted({f["file"] for f in results["gitleaks"][version]["history"]} & silent)
             if noisy:
                 report.fail(f"{version}: files that must produce nothing reported findings",
                             noisy)
             else:
-                report.ok(f"{version}: all {len(silent)} must-stay-silent files are clean")
+                report.ok(f"{version}: all {len(present)} must-stay-silent files are clean")
 
         report.section("line numbers")
         bad = verify_line_numbers(key, tree)
