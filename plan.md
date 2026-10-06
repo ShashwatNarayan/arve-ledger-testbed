@@ -388,20 +388,77 @@ rejected a third of the proposed matrix:
 
 ## Two bugs found in the testbed's own tooling
 
-**`seed_history.py` could never re-stamp a commit hash.** Its substitution
-pattern contained two literal **backspace bytes** (0x08) where the source should
-have read `\b`. Terminals erase the preceding character when printing a
-backspace, so every listing of the file — including `inspect.getsource` — showed
-a correct-looking regex. The pattern matched nothing, the rewrite silently did
-nothing, and the function returned `False` while still printing the mappings it
-had computed. Present since the original build and never noticed, because the
-rewrite only runs when a quoted hash actually changes — which first happens with
-SEC-27.
+### 1. A regex that was invisible in every tool that could have shown it
 
-**Hand-maintained counts had drifted.** The commit count appeared as 11, 12 and
-13 in different files; the `HEAD` finding count as both 10 and 11. Fixed, and
-made structurally impossible to repeat: `scripts/verify_plants.py` is now the
-single source of truth and prints every number the documents quote.
+**Symptom.** A `--force` rebuild failed its own final assertion: the answer key
+quoted commit hashes that were not ancestors of `HEAD`. But the stamper had
+just printed the correct mappings:
+
+```
+stamping commit references:
+  471c68d2 -> bb5619e1
+  b24991a2 -> 8252e095
+```
+
+It computed the right answer and then wrote nothing.
+
+**Cause.** The substitution pattern in `stamp_commit_references()` contained two
+literal **BACKSPACE bytes** (`0x08`) where the source should have read
+backslash-`b`:
+
+```python
+text = re.sub(r"<BS>[0-9a-f]{7,40}<BS>", ...)   # what was really in the file
+text = re.sub(r"\b[0-9a-f]{7,40}\b", ...)       # what everyone saw
+```
+
+The regex therefore meant "a backspace character, then hex, then a backspace
+character", which matches nothing in a JSON file. `re.sub` returned the string
+unchanged, `text != original` was `False`, no file was written, and the function
+returned `False` — *after* printing the mappings, so the log looked healthy.
+
+**Why nobody saw it.** A terminal erases the preceding character when it prints
+a backspace. So `cat`, `grep`, `sed`, an editor pane, a diff, code review — and
+`inspect.getsource`, which reads the same bytes and prints them the same way —
+all rendered `r"<BS>[0-9a-f]{7,40}<BS>"` as a clean `r"[0-9a-f]{7,40}"`. Reading
+the code more carefully could not have found this. Only `cat -A`, a hex dump, or
+a byte-level assertion could.
+
+**Why it survived from the original build.** The rewrite only runs when a quoted
+hash actually *changes*. Until SEC-27 introduced hashes that move on every
+rebuild, the stamper always took its early-exit path — "no stale commit
+references found" — and the broken branch was never executed. It was dead code
+that looked alive.
+
+**Three lessons worth keeping:**
+
+1. **Assert on the effect, not the intermediate.** A unit test checking that the
+   old→new mapping was computed would have passed. The mapping was always right.
+   Only *"the file content changed"* catches this. `scripts/test_tooling.py` now
+   asserts exactly that, and was itself verified by reintroducing the bug in a
+   throwaway copy and confirming the test goes red.
+2. **A success log is not evidence of success.** The function printed its
+   mappings unconditionally, before returning `False`. Print *what changed*, not
+   *what was planned*.
+3. **Source bytes can lie.** `scripts/test_tooling.py` also scans every Python
+   file for control bytes outside tab/newline/carriage-return, so the whole class
+   of invisible-character bug fails loudly rather than rendering nicely.
+
+**Fixed:** the pattern is now a real `\b…\b`, the generated baselines are
+excluded from stamping (a git-mode report records the commit each finding came
+from, so its hashes are stale by definition after a rebuild and must be
+regenerated rather than rewritten), and hashes quoted deliberately as history are
+listed in `HISTORICAL_REFERENCES` instead of being assumed live.
+
+### 2. Hand-maintained counts had drifted
+
+The commit count appeared as **11, 12 and 13** in different files; the `HEAD`
+finding count as both **10 and 11**. Nobody had miscounted — the numbers were
+written once and the repository moved on.
+
+Fixed, and made structurally hard to repeat: `scripts/verify_plants.py` is the
+single source of truth and prints every number the documents quote. The proof
+that the habit dies hard: within minutes of writing "46 commits" into two guides,
+it was 48. Those files now point at the script instead of restating a total.
 
 ## Reproducibility, stated precisely
 

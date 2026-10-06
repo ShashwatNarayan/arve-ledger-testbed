@@ -1,13 +1,24 @@
 #!/usr/bin/env python3
 """Mirror of ARVE's ingestion FileFilter.evaluate().
 
-THIS IS A MIRROR, NOT THE REAL THING. It re-implements
-`backend/app/ingestion/filters/file_filter.py` from the ARVE repository
-(ShashwatNarayan/arve) using the exact lists and evaluation order recorded in
-PROJECT_CONTEXT.md section 3.3. ARVE is under active development, so this copy
-can drift from the real filter. When ARVE's filter changes, update the lists
-below from PROJECT_CONTEXT.md (or the ARVE source) and re-run
-scripts/verify_plants.py -- never "fix" a plant to suit this file.
+THIS IS A MIRROR, NOT THE REAL THING, AND ITS OUTPUT IS A PREDICTION.
+
+It re-implements `backend/app/ingestion/filters/file_filter.py` from the ARVE
+repository (ShashwatNarayan/arve) using the exact lists and evaluation order
+recorded in PROJECT_CONTEXT.md section 3.3.
+
+**No ARVE run has ever confirmed what this file says.** Every "ARVE-simulated"
+number in the answer keys, and the whole of arve-simulated-baseline.json, rests
+on it. ARVE is under active development, so this copy can drift; it also encodes
+assumptions that were never executed against the real code, such as the
+extension being lower-cased before lookup.
+
+If a real ARVE scan disagrees with this mirror, **this file is wrong**. Fix it
+and the answer key to match observed ARVE behaviour, and record the difference --
+a disagreement is itself worth keeping, because it means PROJECT_CONTEXT.md
+section 3.3 no longer describes ARVE. When ARVE's filter changes, update the
+lists below and re-run scripts/verify_plants.py. Never "fix" a plant to suit
+this file.
 
 Evaluation order, per path (normalised to '/'):
   1. any DIRECTORY segment in IGNORED_DIRECTORIES      -> SKIPPED ignored_directory

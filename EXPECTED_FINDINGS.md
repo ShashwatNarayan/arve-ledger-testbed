@@ -10,6 +10,21 @@ planted deliberately and recorded at the moment it was planted.
 - **All credentials are synthetic**, randomly generated with the correct shape so
   scanners match them. None is valid for any real service.
 
+> ### ⚠️ "ARVE's view" is a PREDICTION, not a measurement
+> Every number labelled *ARVE-simulated* or *in ARVE's view*, every
+> `arve_pipeline` block, and the whole of `arve-simulated-baseline.json` is
+> derived from [`scripts/arve_filter_mirror.py`](scripts/arve_filter_mirror.py) —
+> a hand-written mirror of ARVE's `FileFilter`, built from `PROJECT_CONTEXT.md`
+> §3.3. **No ARVE run has confirmed any of it.**
+>
+> What *is* measured: which rule fires, in which file, at which line, for all four
+> scanner versions, and the record counts over the full tree.
+>
+> **If a real ARVE scan disagrees with a predicted number, the mirror is wrong** —
+> fix the mirror and this key, and record the difference, because it means
+> `PROJECT_CONTEXT.md` §3.3 no longer describes ARVE. See
+> `arve_simulation_status` in the machine key for how to validate it.
+
 > ### 🔢 Do not count by hand
 > Every number in this file is produced by
 > **`python scripts/verify_plants.py`**, which runs all four scanner versions and
@@ -22,9 +37,9 @@ planted deliberately and recorded at the moment it was planted.
 |---|---|
 | Advisory data verified | **2026-09-22**, against the live osv.dev API (originally 2026-08-31) |
 | Secrets verified | **2026-09-22**, all 27 detected by gitleaks **8.24.2** *and* **8.30.1** |
-| Expected Gitleaks findings | **31** at `HEAD` · **34** across full history · **24** in ARVE's view |
-| Expected OSV-Scanner records | **49** (osv **1.9.2**) · **50** (osv **2.5.1**) · **41** in ARVE's view |
-| Expected ARVE findings | **23** secrets after normalization — SEC-22's two secrets collapse into one |
+| Expected Gitleaks findings | **31** at `HEAD` · **34** across full history — *measured* |
+| Expected OSV-Scanner records | **49** (osv **1.9.2**) · **50** (osv **2.5.1**) — *measured* |
+| ⚠️ Predicted in ARVE's view | **24** gitleaks · **41** OSV · **23** secrets after normalization — *predicted, see below* |
 | Git history | the v1.1 work is *appended*; commits 1–10 stay byte-identical on rebuild. `verify_plants.py` prints the live commit count — it changes with every commit, so it is deliberately not written out here |
 | Answer-key schema | **1.1** — adds `file_type`, `scanner_verification` and `arve_pipeline` to every finding; see [§ ARVE pipeline view](#arve-pipeline-view-schema-11) |
 | Scanner versions | ARVE-pinned **gitleaks 8.24.2 / osv-scanner 1.9.2** and reference **gitleaks 8.30.1 / osv-scanner 2.5.1** |
@@ -822,10 +837,14 @@ text exactly where it was planted.
 
 ---
 
-# ARVE pipeline view (schema 1.1)
+# ARVE pipeline view (schema 1.1) — ⚠️ predicted, not measured
 
 Everything above answers *"is this flaw detectable?"*. This section answers a
 different question: **"does it ever reach ARVE's scanners at all?"**
+
+**Every ingestion verdict and every count in this section is a PREDICTION** from
+`scripts/arve_filter_mirror.py`. No ARVE run has confirmed them. If ARVE
+disagrees, the mirror is wrong and this section needs updating — not ARVE.
 
 ARVE does not scan this repository as it sits on disk. It scans the subset its
 ingestion `FileFilter` allows through, written to a workspace with **no `.git`
@@ -841,7 +860,8 @@ three independent reasons, and telling them apart is the point of this section:
 The `ingestion` column is computed by
 [`scripts/arve_filter_mirror.py`](scripts/arve_filter_mirror.py), a mirror of
 ARVE's filter that **may drift from ARVE** — when they disagree, ARVE is right
-and the mirror needs updating.
+and the mirror needs updating. Until a real ARVE run is compared against it,
+treat this whole column as an unvalidated prediction.
 
 ## What ARVE sees today
 
@@ -870,7 +890,7 @@ this answer key is the *intended* severity. Record it, do not "fix" it.
 |---|---|---|
 | `gitleaks git .` / full tree (reference baseline) | **12** | **30** |
 | `gitleaks dir .` at `HEAD` | **10** | **30** |
-| **ARVE-simulated** (pinned versions, ingested subset only) | **8** | **30** |
+| **ARVE-simulated** ⚠️ *predicted* (pinned versions, ingested subset only) | **8** | **30** |
 
 Both ingestion gaps are secrets, so the OSV number is unaffected — both
 lockfiles are ingested.

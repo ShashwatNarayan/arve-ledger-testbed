@@ -44,7 +44,8 @@
         "reaches_scanner": true,
         "expected_arve_detected": true,
         "expected_arve_count": 1,
-        "known_arve_divergence": "severity reported as MEDIUM: ARVE's gitleaks mapper hard-codes MEDIUM for every secret (intended HIGH)"
+        "known_arve_divergence": "severity reported as MEDIUM: ARVE's gitleaks mapper hard-codes MEDIUM for every secret (intended HIGH)",
+        "basis": "predicted by scripts/arve_filter_mirror.py; not validated against a real ARVE run"
       }
     },
     {
@@ -83,7 +84,8 @@
         "reaches_scanner": true,
         "expected_arve_detected": true,
         "expected_arve_count": 2,
-        "known_arve_divergence": "severity reported as MEDIUM: ARVE's gitleaks mapper hard-codes MEDIUM for every secret (intended HIGH)"
+        "known_arve_divergence": "severity reported as MEDIUM: ARVE's gitleaks mapper hard-codes MEDIUM for every secret (intended HIGH)",
+        "basis": "predicted by scripts/arve_filter_mirror.py; not validated against a real ARVE run"
       }
     },
     {
@@ -116,7 +118,8 @@
         "reaches_scanner": false,
         "expected_arve_detected": false,
         "expected_arve_count": 0,
-        "known_arve_divergence": "INGESTION GAP: .pem is not in the FileFilter extension allow-list (unsupported_file_type); the scanner never sees the file."
+        "known_arve_divergence": "INGESTION GAP: .pem is not in the FileFilter extension allow-list (unsupported_file_type); the scanner never sees the file.",
+        "basis": "predicted by scripts/arve_filter_mirror.py; not validated against a real ARVE run"
       }
     },
     {
@@ -158,7 +161,8 @@
         "reaches_scanner": false,
         "expected_arve_detected": false,
         "expected_arve_count": 0,
-        "known_arve_divergence": "HISTORY GAP: ARVE runs gitleaks in dir mode over a workspace with no .git, so history-only secrets are unreachable."
+        "known_arve_divergence": "HISTORY GAP: ARVE runs gitleaks in dir mode over a workspace with no .git, so history-only secrets are unreachable.",
+        "basis": "predicted by scripts/arve_filter_mirror.py; not validated against a real ARVE run"
       }
     },
     {
@@ -201,7 +205,8 @@
         "reaches_scanner": true,
         "expected_arve_detected": true,
         "expected_arve_count": 2,
-        "known_arve_divergence": "severity reported as MEDIUM: ARVE's gitleaks mapper hard-codes MEDIUM for every secret (intended HIGH). Two findings, not one: the dir-mode fingerprint file:rule:line differs between the two files."
+        "known_arve_divergence": "severity reported as MEDIUM: ARVE's gitleaks mapper hard-codes MEDIUM for every secret (intended HIGH). Two findings, not one: the dir-mode fingerprint file:rule:line differs between the two files.",
+        "basis": "predicted by scripts/arve_filter_mirror.py; not validated against a real ARVE run"
       }
     },
     {
@@ -251,7 +256,8 @@
         "reaches_scanner": true,
         "expected_arve_detected": true,
         "expected_arve_count": 1,
-        "known_arve_divergence": "severity reported as MEDIUM: ARVE's gitleaks mapper hard-codes MEDIUM for every secret (intended HIGH). ARVE only ever sees HEAD (line 22); the line move lives in history, so the lifecycle test this plant exists for is not exercised until ARVE scans history."
+        "known_arve_divergence": "severity reported as MEDIUM: ARVE's gitleaks mapper hard-codes MEDIUM for every secret (intended HIGH). ARVE only ever sees HEAD (line 22); the line move lives in history, so the lifecycle test this plant exists for is not exercised until ARVE scans history.",
+        "basis": "predicted by scripts/arve_filter_mirror.py; not validated against a real ARVE run"
       }
     },
     {
@@ -284,7 +290,8 @@
         "reaches_scanner": true,
         "expected_arve_detected": true,
         "expected_arve_count": 1,
-        "known_arve_divergence": "severity reported as MEDIUM: ARVE's gitleaks mapper hard-codes MEDIUM for every secret (intended HIGH)"
+        "known_arve_divergence": "severity reported as MEDIUM: ARVE's gitleaks mapper hard-codes MEDIUM for every secret (intended HIGH)",
+        "basis": "predicted by scripts/arve_filter_mirror.py; not validated against a real ARVE run"
       }
     },
     {
@@ -317,7 +324,8 @@
         "reaches_scanner": false,
         "expected_arve_detected": false,
         "expected_arve_count": 0,
-        "known_arve_divergence": "INGESTION GAP: os.path.splitext('.env.example') returns '.example', so the '.env.example' allow-list entry can never match (unsupported_file_type). The SUPPRESSED-lifecycle test cannot be exercised."
+        "known_arve_divergence": "INGESTION GAP: os.path.splitext('.env.example') returns '.example', so the '.env.example' allow-list entry can never match (unsupported_file_type). The SUPPRESSED-lifecycle test cannot be exercised.",
+        "basis": "predicted by scripts/arve_filter_mirror.py; not validated against a real ARVE run"
       }
     },
     {
@@ -350,7 +358,8 @@
         "reaches_scanner": true,
         "expected_arve_detected": true,
         "expected_arve_count": 1,
-        "known_arve_divergence": null
+        "known_arve_divergence": null,
+        "basis": "predicted by scripts/arve_filter_mirror.py; not validated against a real ARVE run"
       }
     },
     {
@@ -390,7 +399,8 @@
         "reaches_scanner": true,
         "expected_arve_detected": true,
         "expected_arve_count": 1,
-        "known_arve_divergence": "Package reported as 'pyyaml' (lower-case) by both OSV versions. Version reported as '5.1' by osv-scanner v1.9.2 (ARVE's pinned version) but '5.1.0' by v2.5.1 (reference)."
+        "known_arve_divergence": "Package reported as 'pyyaml' (lower-case) by both OSV versions. Version reported as '5.1' by osv-scanner v1.9.2 (ARVE's pinned version) but '5.1.0' by v2.5.1 (reference).",
+        "basis": "predicted by scripts/arve_filter_mirror.py; not validated against a real ARVE run"
       }
     },
     {
@@ -430,7 +440,8 @@
         "reaches_scanner": true,
         "expected_arve_detected": true,
         "expected_arve_count": 1,
-        "known_arve_divergence": "Both OSV versions also report PYSEC-2024-230 (over-match, see inventory); ARVE emitting it is correct."
+        "known_arve_divergence": "Both OSV versions also report PYSEC-2024-230 (over-match, see inventory); ARVE emitting it is correct.",
+        "basis": "predicted by scripts/arve_filter_mirror.py; not validated against a real ARVE run"
       }
     },
     {
@@ -470,7 +481,8 @@
         "reaches_scanner": true,
         "expected_arve_detected": true,
         "expected_arve_count": 1,
-        "known_arve_divergence": null
+        "known_arve_divergence": null,
+        "basis": "predicted by scripts/arve_filter_mirror.py; not validated against a real ARVE run"
       }
     },
     {
@@ -510,7 +522,8 @@
         "reaches_scanner": true,
         "expected_arve_detected": true,
         "expected_arve_count": 1,
-        "known_arve_divergence": null
+        "known_arve_divergence": null,
+        "basis": "predicted by scripts/arve_filter_mirror.py; not validated against a real ARVE run"
       }
     },
     {
@@ -556,7 +569,8 @@
         "reaches_scanner": true,
         "expected_arve_detected": true,
         "expected_arve_count": 2,
-        "known_arve_divergence": null
+        "known_arve_divergence": null,
+        "basis": "predicted by scripts/arve_filter_mirror.py; not validated against a real ARVE run"
       }
     },
     {
@@ -596,7 +610,8 @@
         "reaches_scanner": true,
         "expected_arve_detected": true,
         "expected_arve_count": 1,
-        "known_arve_divergence": null
+        "known_arve_divergence": null,
+        "basis": "predicted by scripts/arve_filter_mirror.py; not validated against a real ARVE run"
       }
     },
     {
@@ -636,7 +651,8 @@
         "reaches_scanner": true,
         "expected_arve_detected": true,
         "expected_arve_count": 1,
-        "known_arve_divergence": null
+        "known_arve_divergence": null,
+        "basis": "predicted by scripts/arve_filter_mirror.py; not validated against a real ARVE run"
       }
     },
     {
@@ -676,7 +692,8 @@
         "reaches_scanner": true,
         "expected_arve_detected": true,
         "expected_arve_count": 1,
-        "known_arve_divergence": null
+        "known_arve_divergence": null,
+        "basis": "predicted by scripts/arve_filter_mirror.py; not validated against a real ARVE run"
       }
     },
     {
@@ -709,7 +726,8 @@
         "reaches_scanner": true,
         "expected_arve_detected": true,
         "expected_arve_count": 1,
-        "known_arve_divergence": "severity reported as MEDIUM: ARVE's gitleaks mapper hard-codes MEDIUM for every secret (intended HIGH)"
+        "known_arve_divergence": "severity reported as MEDIUM: ARVE's gitleaks mapper hard-codes MEDIUM for every secret (intended HIGH)",
+        "basis": "predicted by scripts/arve_filter_mirror.py; not validated against a real ARVE run"
       }
     },
     {
@@ -742,7 +760,8 @@
         "reaches_scanner": false,
         "expected_arve_detected": false,
         "expected_arve_count": 0,
-        "known_arve_divergence": "INGESTION GAP: os.path.splitext gives '.properties', which is in no allow-list, so the file is SKIPPED unsupported_file_type and no scanner ever sees it"
+        "known_arve_divergence": "INGESTION GAP: os.path.splitext gives '.properties', which is in no allow-list, so the file is SKIPPED unsupported_file_type and no scanner ever sees it",
+        "basis": "predicted by scripts/arve_filter_mirror.py; not validated against a real ARVE run"
       }
     },
     {
@@ -775,7 +794,8 @@
         "reaches_scanner": true,
         "expected_arve_detected": true,
         "expected_arve_count": 1,
-        "known_arve_divergence": "severity reported as MEDIUM: ARVE's gitleaks mapper hard-codes MEDIUM for every secret (intended HIGH)"
+        "known_arve_divergence": "severity reported as MEDIUM: ARVE's gitleaks mapper hard-codes MEDIUM for every secret (intended HIGH)",
+        "basis": "predicted by scripts/arve_filter_mirror.py; not validated against a real ARVE run"
       }
     },
     {
@@ -808,7 +828,8 @@
         "reaches_scanner": true,
         "expected_arve_detected": true,
         "expected_arve_count": 1,
-        "known_arve_divergence": "severity reported as MEDIUM by ARVE's hard-coded mapper, which happens to match this finding's intended MEDIUM - for the wrong reason"
+        "known_arve_divergence": "severity reported as MEDIUM by ARVE's hard-coded mapper, which happens to match this finding's intended MEDIUM - for the wrong reason",
+        "basis": "predicted by scripts/arve_filter_mirror.py; not validated against a real ARVE run"
       }
     },
     {
@@ -841,7 +862,8 @@
         "reaches_scanner": true,
         "expected_arve_detected": true,
         "expected_arve_count": 1,
-        "known_arve_divergence": "severity reported as MEDIUM: ARVE's gitleaks mapper hard-codes MEDIUM for every secret (intended HIGH)"
+        "known_arve_divergence": "severity reported as MEDIUM: ARVE's gitleaks mapper hard-codes MEDIUM for every secret (intended HIGH)",
+        "basis": "predicted by scripts/arve_filter_mirror.py; not validated against a real ARVE run"
       }
     },
     {
@@ -874,7 +896,8 @@
         "reaches_scanner": false,
         "expected_arve_detected": false,
         "expected_arve_count": 0,
-        "known_arve_divergence": "INGESTION GAP: splitext('.npmrc') -> '' which is in no allow-list, so the file is SKIPPED unsupported_file_type. Same root cause as the unreachable '.env' entry."
+        "known_arve_divergence": "INGESTION GAP: splitext('.npmrc') -> '' which is in no allow-list, so the file is SKIPPED unsupported_file_type. Same root cause as the unreachable '.env' entry.",
+        "basis": "predicted by scripts/arve_filter_mirror.py; not validated against a real ARVE run"
       }
     },
     {
@@ -926,7 +949,8 @@
         "reaches_scanner": true,
         "expected_arve_detected": true,
         "expected_arve_count": 3,
-        "known_arve_divergence": "severity reported as MEDIUM: ARVE's gitleaks mapper hard-codes MEDIUM for every secret (intended HIGH). Three findings for one credential: the dir-mode fingerprint file:rule:line differs per file. Compare SEC-22, where two DIFFERENT credentials share one fingerprint - the identity field is wrong in both directions."
+        "known_arve_divergence": "severity reported as MEDIUM: ARVE's gitleaks mapper hard-codes MEDIUM for every secret (intended HIGH). Three findings for one credential: the dir-mode fingerprint file:rule:line differs per file. Compare SEC-22, where two DIFFERENT credentials share one fingerprint - the identity field is wrong in both directions.",
+        "basis": "predicted by scripts/arve_filter_mirror.py; not validated against a real ARVE run"
       }
     },
     {
@@ -964,7 +988,8 @@
         "reaches_scanner": true,
         "expected_arve_detected": true,
         "expected_arve_count": 1,
-        "known_arve_divergence": "severity reported as MEDIUM: ARVE's gitleaks mapper hard-codes MEDIUM for every secret (intended HIGH). The wrong StartColumn does not reach ARVE at all: NormalizedFinding carries no column, so the value is dropped in mapping rather than mis-stored."
+        "known_arve_divergence": "severity reported as MEDIUM: ARVE's gitleaks mapper hard-codes MEDIUM for every secret (intended HIGH). The wrong StartColumn does not reach ARVE at all: NormalizedFinding carries no column, so the value is dropped in mapping rather than mis-stored.",
+        "basis": "predicted by scripts/arve_filter_mirror.py; not validated against a real ARVE run"
       }
     },
     {
@@ -997,7 +1022,8 @@
         "reaches_scanner": true,
         "expected_arve_detected": true,
         "expected_arve_count": 1,
-        "known_arve_divergence": "severity reported as MEDIUM: ARVE's gitleaks mapper hard-codes MEDIUM for every secret (intended HIGH)"
+        "known_arve_divergence": "severity reported as MEDIUM: ARVE's gitleaks mapper hard-codes MEDIUM for every secret (intended HIGH)",
+        "basis": "predicted by scripts/arve_filter_mirror.py; not validated against a real ARVE run"
       }
     },
     {
@@ -1030,7 +1056,8 @@
         "reaches_scanner": true,
         "expected_arve_detected": true,
         "expected_arve_count": 1,
-        "known_arve_divergence": "severity reported as MEDIUM: ARVE's gitleaks mapper hard-codes MEDIUM for every secret (intended HIGH). Ingested via the filename allow-list ('dockerfile'), not the extension list."
+        "known_arve_divergence": "severity reported as MEDIUM: ARVE's gitleaks mapper hard-codes MEDIUM for every secret (intended HIGH). Ingested via the filename allow-list ('dockerfile'), not the extension list.",
+        "basis": "predicted by scripts/arve_filter_mirror.py; not validated against a real ARVE run"
       }
     },
     {
@@ -1063,7 +1090,8 @@
         "reaches_scanner": true,
         "expected_arve_detected": true,
         "expected_arve_count": 1,
-        "known_arve_divergence": "severity reported as MEDIUM: ARVE's gitleaks mapper hard-codes MEDIUM for every secret (intended HIGH). Compare SEC-03: identical rule, dropped at ingestion because the extension is .pem."
+        "known_arve_divergence": "severity reported as MEDIUM: ARVE's gitleaks mapper hard-codes MEDIUM for every secret (intended HIGH). Compare SEC-03: identical rule, dropped at ingestion because the extension is .pem.",
+        "basis": "predicted by scripts/arve_filter_mirror.py; not validated against a real ARVE run"
       }
     },
     {
@@ -1096,7 +1124,8 @@
         "reaches_scanner": false,
         "expected_arve_detected": false,
         "expected_arve_count": 0,
-        "known_arve_divergence": "INGESTION GAP: '.tf' is in neither the filename nor the extension allow-list, so the file is SKIPPED unsupported_file_type."
+        "known_arve_divergence": "INGESTION GAP: '.tf' is in neither the filename nor the extension allow-list, so the file is SKIPPED unsupported_file_type.",
+        "basis": "predicted by scripts/arve_filter_mirror.py; not validated against a real ARVE run"
       }
     },
     {
@@ -1129,7 +1158,8 @@
         "reaches_scanner": true,
         "expected_arve_detected": true,
         "expected_arve_count": 1,
-        "known_arve_divergence": "severity reported as MEDIUM: ARVE's gitleaks mapper hard-codes MEDIUM for every secret (intended HIGH)"
+        "known_arve_divergence": "severity reported as MEDIUM: ARVE's gitleaks mapper hard-codes MEDIUM for every secret (intended HIGH)",
+        "basis": "predicted by scripts/arve_filter_mirror.py; not validated against a real ARVE run"
       }
     },
     {
@@ -1162,7 +1192,8 @@
         "reaches_scanner": false,
         "expected_arve_detected": false,
         "expected_arve_count": 0,
-        "known_arve_divergence": "INGESTION GAP: the path segment 'build' is in the ignored-directory list, so the file is SKIPPED ignored_directory before any size or extension check. Contrast SEC-20, an identical .sh file that is ingested."
+        "known_arve_divergence": "INGESTION GAP: the path segment 'build' is in the ignored-directory list, so the file is SKIPPED ignored_directory before any size or extension check. Contrast SEC-20, an identical .sh file that is ingested.",
+        "basis": "predicted by scripts/arve_filter_mirror.py; not validated against a real ARVE run"
       }
     },
     {
@@ -1195,7 +1226,8 @@
         "reaches_scanner": true,
         "expected_arve_detected": true,
         "expected_arve_count": 1,
-        "known_arve_divergence": "severity reported as MEDIUM: ARVE's gitleaks mapper hard-codes MEDIUM for every secret (intended HIGH)"
+        "known_arve_divergence": "severity reported as MEDIUM: ARVE's gitleaks mapper hard-codes MEDIUM for every secret (intended HIGH)",
+        "basis": "predicted by scripts/arve_filter_mirror.py; not validated against a real ARVE run"
       }
     },
     {
@@ -1239,7 +1271,8 @@
         "expected_arve_count": 1,
         "known_arve_divergence": "severity reported as MEDIUM: ARVE's gitleaks mapper hard-codes MEDIUM for every secret (intended HIGH). COLLAPSE EXPECTED: 2 leaked credentials -> 1 ARVE finding, because secret_hash (= the gitleaks fingerprint file:rule:line) is identical for both and --redact removes the values.",
         "expected_arve_scanner_findings": 2,
-        "collapse_note": "gitleaks reports 2 over the ingested subset; ARVE is expected to store 1 after fingerprint collapse"
+        "collapse_note": "gitleaks reports 2 over the ingested subset; ARVE is expected to store 1 after fingerprint collapse",
+        "basis": "predicted by scripts/arve_filter_mirror.py; not validated against a real ARVE run"
       }
     },
     {
@@ -1274,7 +1307,8 @@
         "reaches_scanner": false,
         "expected_arve_detected": false,
         "expected_arve_count": 0,
-        "known_arve_divergence": "INGESTION GAP: 1,262,651 bytes > 1,048,576-byte limit, so SKIPPED file_too_large. The size check runs before the extension check, so the .json extension never gets a chance to allow it."
+        "known_arve_divergence": "INGESTION GAP: 1,262,651 bytes > 1,048,576-byte limit, so SKIPPED file_too_large. The size check runs before the extension check, so the .json extension never gets a chance to allow it.",
+        "basis": "predicted by scripts/arve_filter_mirror.py; not validated against a real ARVE run"
       }
     },
     {
@@ -1330,7 +1364,8 @@
         "reaches_scanner": true,
         "expected_arve_detected": true,
         "expected_arve_count": 1,
-        "known_arve_divergence": "severity reported as MEDIUM: ARVE's gitleaks mapper hard-codes MEDIUM for every secret (intended HIGH). ROTATION INVISIBLE: ARVE sees only HEAD and fingerprints on file:rule:line, so the old and new keys share one identity. Expected ARVE behaviour is a single finding that never transitions - not RESOLVED for the old key, not a new finding for the new one."
+        "known_arve_divergence": "severity reported as MEDIUM: ARVE's gitleaks mapper hard-codes MEDIUM for every secret (intended HIGH). ROTATION INVISIBLE: ARVE sees only HEAD and fingerprints on file:rule:line, so the old and new keys share one identity. Expected ARVE behaviour is a single finding that never transitions - not RESOLVED for the old key, not a new finding for the new one.",
+        "basis": "predicted by scripts/arve_filter_mirror.py; not validated against a real ARVE run"
       }
     },
     {
@@ -1374,7 +1409,8 @@
         "reaches_scanner": true,
         "expected_arve_detected": true,
         "expected_arve_count": 1,
-        "known_arve_divergence": null
+        "known_arve_divergence": null,
+        "basis": "predicted by scripts/arve_filter_mirror.py; not validated against a real ARVE run"
       }
     },
     {
@@ -1416,7 +1452,8 @@
         "reaches_scanner": false,
         "expected_arve_detected": false,
         "expected_arve_count": 0,
-        "known_arve_divergence": "INGESTION GAP: 'gradle.lockfile' is in neither allow-list, so it is SKIPPED unsupported_file_type and the Gradle module is scanned as though it had no dependencies."
+        "known_arve_divergence": "INGESTION GAP: 'gradle.lockfile' is in neither allow-list, so it is SKIPPED unsupported_file_type and the Gradle module is scanned as though it had no dependencies.",
+        "basis": "predicted by scripts/arve_filter_mirror.py; not validated against a real ARVE run"
       }
     },
     {
@@ -1459,7 +1496,8 @@
         "reaches_scanner": true,
         "expected_arve_detected": true,
         "expected_arve_count": 1,
-        "known_arve_divergence": "ARVE should emit MEDIUM here by DEFAULT rather than by mapping - the record carries no severity data of any kind. cve must populate from the alias while the OSV id stays GO-2026-5970."
+        "known_arve_divergence": "ARVE should emit MEDIUM here by DEFAULT rather than by mapping - the record carries no severity data of any kind. cve must populate from the alias while the OSV id stays GO-2026-5970.",
+        "basis": "predicted by scripts/arve_filter_mirror.py; not validated against a real ARVE run"
       }
     },
     {
@@ -1502,7 +1540,8 @@
         "reaches_scanner": false,
         "expected_arve_detected": false,
         "expected_arve_count": 0,
-        "known_arve_divergence": "INGESTION GAP: 'Cargo.lock' is not in the filename allow-list (Cargo.toml is), so the Rust ecosystem is scanned as empty - the manifest is ingested and the lockfile, the only thing OSV reads, is not."
+        "known_arve_divergence": "INGESTION GAP: 'Cargo.lock' is not in the filename allow-list (Cargo.toml is), so the Rust ecosystem is scanned as empty - the manifest is ingested and the lockfile, the only thing OSV reads, is not.",
+        "basis": "predicted by scripts/arve_filter_mirror.py; not validated against a real ARVE run"
       }
     },
     {
@@ -1545,7 +1584,8 @@
         "reaches_scanner": true,
         "expected_arve_detected": true,
         "expected_arve_count": 1,
-        "known_arve_divergence": null
+        "known_arve_divergence": null,
+        "basis": "predicted by scripts/arve_filter_mirror.py; not validated against a real ARVE run"
       }
     },
     {
@@ -1595,7 +1635,8 @@
         "reaches_scanner": true,
         "expected_arve_detected": true,
         "expected_arve_count": 2,
-        "known_arve_divergence": null
+        "known_arve_divergence": null,
+        "basis": "predicted by scripts/arve_filter_mirror.py; not validated against a real ARVE run"
       }
     },
     {
@@ -1639,7 +1680,8 @@
         "reaches_scanner": true,
         "expected_arve_detected": true,
         "expected_arve_count": 1,
-        "known_arve_divergence": "Ingested only because of the .json extension, not because the lockfile is recognised by name."
+        "known_arve_divergence": "Ingested only because of the .json extension, not because the lockfile is recognised by name.",
+        "basis": "predicted by scripts/arve_filter_mirror.py; not validated against a real ARVE run"
       }
     },
     {
@@ -1688,7 +1730,8 @@
         "reaches_scanner": false,
         "expected_arve_detected": false,
         "expected_arve_count": 0,
-        "known_arve_divergence": "INGESTION GAP: 'poetry.lock' is in no allow-list, so it is SKIPPED unsupported_file_type - while tools/pyproject.toml beside it IS ingested and gives OSV nothing to resolve."
+        "known_arve_divergence": "INGESTION GAP: 'poetry.lock' is in no allow-list, so it is SKIPPED unsupported_file_type - while tools/pyproject.toml beside it IS ingested and gives OSV nothing to resolve.",
+        "basis": "predicted by scripts/arve_filter_mirror.py; not validated against a real ARVE run"
       }
     },
     {
@@ -1736,7 +1779,8 @@
         "reaches_scanner": false,
         "expected_arve_detected": false,
         "expected_arve_count": 0,
-        "known_arve_divergence": "INGESTION GAP: the filename allow-list is an exact match against 'requirements.txt'; 'requirements-dev.txt' has extension '.txt', which is in no extension allow-list either, so it is SKIPPED unsupported_file_type."
+        "known_arve_divergence": "INGESTION GAP: the filename allow-list is an exact match against 'requirements.txt'; 'requirements-dev.txt' has extension '.txt', which is in no extension allow-list either, so it is SKIPPED unsupported_file_type.",
+        "basis": "predicted by scripts/arve_filter_mirror.py; not validated against a real ARVE run"
       }
     },
     {
@@ -1785,7 +1829,8 @@
         "reaches_scanner": false,
         "expected_arve_detected": false,
         "expected_arve_count": 0,
-        "known_arve_divergence": "INGESTION GAP: 'Gemfile.lock' is in no allow-list, so it is SKIPPED unsupported_file_type and the Ruby ecosystem is scanned as empty."
+        "known_arve_divergence": "INGESTION GAP: 'Gemfile.lock' is in no allow-list, so it is SKIPPED unsupported_file_type and the Ruby ecosystem is scanned as empty.",
+        "basis": "predicted by scripts/arve_filter_mirror.py; not validated against a real ARVE run"
       }
     },
     {
@@ -1835,7 +1880,8 @@
         "reaches_scanner": true,
         "expected_arve_detected": true,
         "expected_arve_count": 2,
-        "known_arve_divergence": "Must NOT collapse with DEP-05: file_path is part of the fingerprint, so the same package version in two lockfiles is two findings."
+        "known_arve_divergence": "Must NOT collapse with DEP-05: file_path is part of the fingerprint, so the same package version in two lockfiles is two findings.",
+        "basis": "predicted by scripts/arve_filter_mirror.py; not validated against a real ARVE run"
       }
     },
     {
@@ -1892,7 +1938,8 @@
         "reaches_scanner": true,
         "expected_arve_detected": true,
         "expected_arve_count": 2,
-        "known_arve_divergence": "COLLAPSE EXPECTED: 3 OSV records -> 2 ARVE findings. The dependency fingerprint omits package_version, so the same advisory on two versions in one file yields one identity."
+        "known_arve_divergence": "COLLAPSE EXPECTED: 3 OSV records -> 2 ARVE findings. The dependency fingerprint omits package_version, so the same advisory on two versions in one file yields one identity.",
+        "basis": "predicted by scripts/arve_filter_mirror.py; not validated against a real ARVE run"
       }
     }
   ],
@@ -2719,7 +2766,7 @@
   "schema_notes": {
     "file_type": "language / format label of file_path",
     "scanner_verification": "whether the scanner detects the plant when it is shown the file (full working tree, or git history for history-only plants). Recorded for ARVE's pinned versions (gitleaks 8.24.2, osv-scanner 1.9.2) and the reference versions (gitleaks 8.30.1, osv-scanner 2.5.1).",
-    "arve_pipeline": "what ARVE is expected to do today, per PROJECT_CONTEXT.md section 3. ingestion comes from scripts/arve_filter_mirror.py (a mirror of ARVE's FileFilter that may drift from ARVE). ingestion values: INGESTED, SKIPPED, or ABSENT_AT_HEAD for history-only plants. reaches_scanner is false when SKIPPED or ABSENT_AT_HEAD. expected_arve_count is the number of findings ARVE should emit for this plant's target (for DEP-* see total_records_for_package for the full inventory).",
+    "arve_pipeline": "PREDICTED, not measured - see arve_simulation_status. What ARVE is expected to do today, per PROJECT_CONTEXT.md section 3. ingestion comes from scripts/arve_filter_mirror.py, a mirror of ARVE's FileFilter that may drift from ARVE; no ARVE run has confirmed it. ingestion values: INGESTED, SKIPPED, or ABSENT_AT_HEAD for history-only plants. reaches_scanner is false when SKIPPED or ABSENT_AT_HEAD. expected_arve_count is the number of findings ARVE should emit for this plant's target.",
     "negative_controls": "things that must produce zero findings in every scanner version",
     "known_false_positives": "negative controls a scanner fires on anyway; moved here with the reason",
     "scanner_limitations": "scanner behaviour discovered while planting that is NOT a plant and NOT scored. Secret values in test strings are replaced by {VALUE}; value_shape says how the tested value was generated, so the test can be re-run with a fresh synthetic value without planting it here."
@@ -3498,5 +3545,19 @@
     "scripts/arve_filter_mirror.py",
     "scripts/verify_plants.py",
     "tools/env_check.py"
-  ]
+  ],
+  "arve_simulation_status": {
+    "status": "UNVALIDATED PREDICTION",
+    "source": "scripts/arve_filter_mirror.py (mirror of ARVE's FileFilter, per PROJECT_CONTEXT.md section 3.3)",
+    "validated_by_a_real_arve_run": false,
+    "what_is_measured": "the scanner results themselves: which rule fires, in which file, at which line, for all four scanner versions, plus the record counts over the full tree",
+    "what_is_predicted": "which files ARVE ingests, and therefore every count labelled ARVE-simulated, every arve_pipeline.ingestion / skip_reason / reaches_scanner / expected_arve_count value, and arve-simulated-baseline.json",
+    "if_they_disagree": "the mirror is wrong. Update scripts/arve_filter_mirror.py and this answer key to match observed ARVE behaviour, and record the difference - a disagreement is itself a finding worth keeping, because it means PROJECT_CONTEXT.md section 3.3 no longer describes ARVE.",
+    "how_to_validate": "run ARVE against this repository at a pinned commit, export its repository_files table (status per path) and its security_findings, and diff both against scripts/verify_plants.py --json output.",
+    "note": "PREDICTION, NOT A MEASUREMENT. Every 'ARVE-simulated' / arve_pipeline value in this answer key is derived from scripts/arve_filter_mirror.py, a hand-written mirror of ARVE's FileFilter built from PROJECT_CONTEXT.md section 3.3. No ARVE scan has confirmed any of it. The mirror can drift from ARVE whenever ARVE's filter changes, and it encodes assumptions that were never executed against the real code (for example that the extension is lower-cased before lookup). IF A REAL ARVE RUN DISAGREES WITH THESE NUMBERS, THE MIRROR IS WRONG AND THE ANSWER KEY MUST BE UPDATED - not ARVE. The gitleaks/osv record counts and every finding's file, line and rule ARE measurements, taken from the four scanner versions; only the ingestion verdicts and the counts derived from them are predicted."
+  },
+  "predicted_gitleaks_finding_count_via_arve_ingestion": 24,
+  "predicted_arve_finding_count_after_normalization": 23,
+  "predicted_osv_record_count_via_arve_ingestion": 41,
+  "prediction_note": "The three predicted_* counts above come from the filter mirror, not from ARVE. The expected_*_via_arve_ingestion keys are kept as aliases of the same values. See arve_simulation_status."
 }

@@ -163,7 +163,14 @@ testbed is for. Record it.
 
 ---
 
-## 4. Current repository state (before this change)
+## 4. Repository state at the time this brief was written
+
+> **This section is a snapshot, not a live count.** The v1.1 expansion took the
+> testbed from 17 findings to 47. **Never quote totals from this file** — run
+> `python scripts/verify_plants.py`, which runs all four scanner versions and
+> prints every count the documentation uses. Hand-maintained totals are exactly
+> what drifted here: the commit count below said 11 when the repository already
+> had 13.
 
 17 planted findings, all verified detected by the reference tools on 2026-08-31.
 
@@ -172,32 +179,67 @@ testbed is for. Record it.
 | Secrets (Gitleaks) | SEC-01…09 | `backend/app/config.py` (01, 05, 07), `.github/workflows/deploy.yml` (02, two findings), `backend/keys/webhook_signing.pem` (03), `backend/app/settlement.py` history-only (04), `backend/tests/conftest.py` (05 copy), `backend/app/webhooks.py` (06, moves line in history), `.env.example` (08), `docs/runbook.md` (09) |
 | Dependencies (OSV) | DEP-01…08 | `backend/requirements.txt` (PyPI: PyYAML 5.1, certifi 2018.4.16 transitive) and `web/package-lock.json` (npm: lodash, follow-redirects, minimist, jquery, serialize-javascript, stringstream) |
 
-Counts: 10 Gitleaks findings at HEAD, 12 across history; 30 OSV records
-(29 planted + 1 known scanner over-match, `PYSEC-2024-230` on certifi).
-History: 11 commits, rebuilt reproducibly by `seed_history.py`. SEC-04 and SEC-06
-answer-key entries contain **real commit hashes** that must not change.
+Counts at that time: 10 Gitleaks findings at HEAD, 12 across history; 30 OSV
+records (29 planted + 1 known scanner over-match, `PYSEC-2024-230` on certifi).
+History: **13 commits** (an earlier revision of this line said 11), rebuilt
+reproducibly by `seed_history.py`. SEC-04 and SEC-06 answer-key entries contain
+**real commit hashes** that must not change.
+
+For the current numbers, run `python scripts/verify_plants.py`.
 
 Key files: `expected-findings.json` (machine answer key — the one scoring uses),
 `EXPECTED_FINDINGS.md` (human answer key), `README_TEAM.md` (evaluator guide),
 `gitleaks-baseline.json` / `osv-baseline.json` (reference outputs, secrets redacted),
-`plan.md` (original build log), `seed_history.py`.
+`arve-simulated-baseline.json` (pinned versions over the predicted ingested subset),
+`plan.md` (build log), `seed_history.py`, `ARVE_ISSUES.md` (pipeline gaps to file),
+`scripts/arve_filter_mirror.py` and `scripts/verify_plants.py`.
 
 ---
 
 ## 5. Invariants — never violate these
 
-1. **Existing IDs are frozen.** Never renumber, repurpose or delete SEC-01…09 /
-   DEP-01…08. New plants continue the sequence (SEC-10+, DEP-09+). Negative
-   controls use NEG-01+.
-2. **Existing line numbers are frozen.** Do not edit any file that currently holds
-   a plant: `backend/app/config.py`, `backend/tests/conftest.py`,
+1. **Existing IDs are frozen.** Never renumber, repurpose or delete any assigned
+   ID. As of the v1.1 expansion that means **SEC-01…SEC-27**, **DEP-01…DEP-20**
+   and **NEG-01…NEG-06** are all frozen; the next free IDs are SEC-28, DEP-21 and
+   NEG-07. Scanner limitations use LIM-01+ and are *not* plants — they are
+   recorded behaviour and must never be scored.
+2. **Existing line numbers are frozen.** Do not edit any file that holds a plant.
+   New plants go in **new files**.
+
+   *v1.0 files:* `backend/app/config.py`, `backend/tests/conftest.py`,
    `backend/app/webhooks.py`, `.github/workflows/deploy.yml`, `.env.example`,
    `docs/runbook.md`, `backend/keys/webhook_signing.pem`, `backend/requirements.txt`,
    `backend/requirements.in`, `web/package.json`, `web/package-lock.json`.
-   New plants go in **new files**.
+
+   *v1.1 files:* `services/settlement-java/**` (SEC-10, SEC-11, DEP-09),
+   `apps/status-page/{styles.css,index.html}` (SEC-12, SEC-13),
+   `apps/admin-ui/{.npmrc,yarn.lock,public/vendor.min.js,src/{deployStatus.ts,analyticsClient.js}}`
+   (SEC-14, SEC-15, SEC-23, SEC-24, DEP-13, DEP-19, NEG-04),
+   `services/reconciler-go/{main.go,go.mod}` (SEC-16, DEP-11),
+   `ops/{Dockerfile,k8s/*.yaml,terraform/main.tf,scripts/backup.sh,build/publish.sh}`
+   (SEC-17…SEC-20, SEC-23, SEC-26),
+   `db/{seed.sql,fixtures/merchant_export.json}` (SEC-21, SEC-25),
+   `tools/{sync_keys.py,analytics_export.py,poetry.lock,requirements-dev.txt}`
+   (SEC-22, SEC-23, DEP-16, DEP-17),
+   `services/notifier-rust/{notifier.toml,Cargo.lock}` (SEC-27, DEP-12),
+   `services/payout-scheduler/gradle.lockfile` (DEP-10),
+   `services/ledger-export-dotnet/packages.lock.json` (DEP-15),
+   `apps/partner-webhooks/pnpm-lock.yaml` (DEP-14, DEP-20),
+   `apps/merchant-portal/Gemfile.lock` (DEP-18),
+   and the negative-control files listed under `negative_controls` in the key.
+
+   `python scripts/verify_plants.py` fails if any recorded line stops matching.
 3. **Existing commit hashes are frozen.** New history is *appended* after the
-   current 11 commits. After any rebuild, the hashes recorded for SEC-04 and SEC-06
-   must be byte-identical. If `seed_history.py` cannot guarantee that, stop and ask.
+   existing commits — 13 at the time this was written, and `verify_plants.py`
+   prints the live count. After any rebuild, the hashes recorded for SEC-04 and
+   SEC-06 must be byte-identical. If `seed_history.py` cannot guarantee that,
+   stop and ask.
+   **Verified for v1.1:** commits 1–10 rebuild byte-identically, which covers
+   every hash the answer keys quote. Commits 11 onward stage files that get
+   edited, so their hashes do move; SEC-27's two commits sit there and are
+   re-stamped automatically. Two things keep this true and are easy to break —
+   the script pins `core.autocrlf=input`, and it embeds the original commit-1
+   `README.md` rather than reading the working tree.
 4. **The answer key is written as you plant, never afterwards.** A planted but
    unrecorded flaw looks like a false positive; a recorded but unplanted one looks
    like a miss. Either invalidates the evaluation.

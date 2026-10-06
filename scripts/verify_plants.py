@@ -19,8 +19,14 @@ What it does
      osv-scanner 1.9.2 (ARVE pinned) over the full tree and the ingested subset
      osv-scanner 2.5.1 (reference)
 
-   The `dir` run over ONLY the ingested files is the ARVE simulation: it is what
-   ARVE's scanners actually see.
+   The `dir` run over ONLY the ingested files is the ARVE simulation.
+
+   **That one is a PREDICTION, not a measurement.** The ingested subset comes
+   from scripts/arve_filter_mirror.py, a hand-written mirror of ARVE's
+   FileFilter. No ARVE run has confirmed it. Everything else here is measured:
+   which rule fires, in which file, at which line, for each scanner version. If
+   a real ARVE scan disagrees with the predicted numbers, **the mirror is wrong**
+   and both it and the answer key need updating -- not ARVE.
 3. Diffs every run against expected-findings.json and exits non-zero on any
    difference that the answer key does not already explain.
 
@@ -263,7 +269,7 @@ def main():
         verdicts = split_ingested(tree, ingested)
         skipped = [v for v in verdicts if v["status"] == "SKIPPED"]
 
-        report.section("ingestion (scripts/arve_filter_mirror.py)")
+        report.section("ingestion [PREDICTED by scripts/arve_filter_mirror.py, not by ARVE]")
         report.ok(f"{len(verdicts) - len(skipped)} of {len(verdicts)} files ingested, "
                   f"{len(skipped)} skipped")
         by_reason = Counter(v["skip_reason"] for v in skipped)
@@ -282,7 +288,7 @@ def main():
             results["gitleaks"][version] = {"head": full, "arve": arve, "history": git}
             check_set(report, f"{version} dir at HEAD", full, head_exp)
             check_set(report, f"{version} git full history", git, history_exp)
-            check_set(report, f"{version} ARVE-simulated (ingested subset)", arve, arve_exp)
+            check_set(report, f"{version} ARVE-simulated [PREDICTED] (ingested subset)", arve, arve_exp)
 
         report.section("dependencies (osv-scanner)")
         for version in osv_versions:
@@ -303,9 +309,9 @@ def main():
             arve_expected = {k: v for k, v in expected.items() if k[0] in ingested_paths}
             u2, m2, w2 = compare_osv(arve, arve_expected)
             if not u2 and not m2 and not w2:
-                report.ok(f"{version} ARVE-simulated: {len(arve)} records, exactly as expected")
+                report.ok(f"{version} ARVE-simulated [PREDICTED]: {len(arve)} records, exactly as expected")
             else:
-                report.fail(f"{version} ARVE-simulated: {len(arve)} records, expected {len(arve_expected)}",
+                report.fail(f"{version} ARVE-simulated [PREDICTED]: {len(arve)} records, expected {len(arve_expected)}",
                             [f"unexpected: {u}" for u in u2] + [f"missing:    {m}" for m in m2])
 
         report.section("negative controls")
@@ -379,17 +385,22 @@ def print_counts(counts, key):
           f"  ({counts['secrets']} secrets + {counts['dependencies']} dependencies)")
     print(f"  negative controls                   {counts['negative_controls']}")
     print(f"  commits on main                     {counts['commits']}")
-    print("\n  gitleaks findings")
+    print("\n  gitleaks findings            [MEASURED]")
     print(f"    git (full history)                {counts['gitleaks_full_history']}")
     print(f"    dir at HEAD                       {counts['gitleaks_at_head']}")
-    print(f"    ARVE-simulated (ingested subset)  {counts['gitleaks_via_arve_ingestion']}")
-    print(f"    ARVE after normalization          {counts['arve_findings_after_normalization']}"
-          "   (SEC-22's two secrets collapse to one)")
-    print("\n  osv-scanner records")
+    print("\n  osv-scanner records          [MEASURED]")
     print(f"    osv 1.9.2 (ARVE pinned)           {counts['osv_records_pinned']}")
     print(f"    osv 2.5.1 (reference)             {counts['osv_records_reference']}"
           "   (also reports Newtonsoft.Json from the .csproj)")
-    print(f"    ARVE-simulated (ingested subset)  {counts['osv_records_via_arve_ingestion']}")
+    print("\n  ARVE's view                  [PREDICTED by the filter mirror -")
+    print("                                 no ARVE run has confirmed it]")
+    print(f"    gitleaks, ingested subset         {counts['gitleaks_via_arve_ingestion']}")
+    print(f"    after normalization               {counts['arve_findings_after_normalization']}"
+          "   (SEC-22's two secrets collapse to one)")
+    print(f"    osv, ingested subset              {counts['osv_records_via_arve_ingestion']}")
+    print("\n  If a real ARVE run disagrees with the predicted numbers, the mirror")
+    print("  is wrong: fix scripts/arve_filter_mirror.py and the answer key, and")
+    print("  record the difference. It means PROJECT_CONTEXT.md 3.3 is out of date.")
     print("=" * 68)
 
 
